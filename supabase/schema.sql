@@ -21,7 +21,7 @@ create table public.profiles (
 
 create table public.paces (
   id uuid primary key default gen_random_uuid(),
-  owner_id uuid not null references public.profiles(id) on delete cascade,
+  owner_id uuid not null default auth.uid()::uuid references public.profiles(id) on delete cascade,
   title text not null check (char_length(title) between 1 and 80),
   description text,
   mood public.pace_mood not null default 'nostalgic',
@@ -136,6 +136,24 @@ create trigger on_pace_created
   after insert on public.paces
   for each row execute function public.add_owner_membership();
 
+create or replace function public.set_pace_owner()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.owner_id is null then
+    new.owner_id := auth.uid()::uuid;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger before_insert_pace
+  before insert on public.paces
+  for each row execute function public.set_pace_owner();
+
 create policy "profiles are visible to shared pace members"
   on public.profiles for select
   using (
@@ -154,9 +172,13 @@ create policy "users can update own profile"
   using (id = auth.uid())
   with check (id = auth.uid());
 
+create policy "users can create own profile"
+  on public.profiles for insert
+  with check (id = auth.uid());
+
 create policy "members can read paces"
   on public.paces for select
-  using (public.is_pace_member(id));
+  using (owner_id = auth.uid()::uuid or public.is_pace_member(id));
 
 create policy "users can create paces"
   on public.paces for insert
@@ -207,7 +229,120 @@ create policy "members can read ai recaps"
   on public.ai_recaps for select
   using (public.is_pace_member(pace_id));
 
+create or replace function public.ensure_user_profile(
+  display_name_arg text default null,
+  avatar_url_arg text default null
+)
+returns public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  profile_row public.profiles;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  insert into public.profiles (id, display_name, avatar_url)
+  values (
+    auth.uid(),
+    coalesce(display_name_arg, split_part(coalesce(auth.jwt()->>'email', ''), '@', 1), 'Pace friend'),
+    avatar_url_arg
+  )
+  on conflict (id) do update
+  set
+    display_name = coalesce(excluded.display_name, public.profiles.display_name),
+    avatar_url = coalesce(excluded.avatar_url, public.profiles.avatar_url)
+  returning * into profile_row;
+
+  return profile_row;
+end;
+$$;
+
+grant execute on function public.ensure_user_profile(text, text) to authenticated;
+
+create or replace function public.create_pace(
+  title_arg text,
+  description_arg text default null,
+  mood_arg public.pace_mood default 'nostalgic',
+  cover_url_arg text default null,
+  color_theme_arg text default null
+)
+returns public.paces
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  pace_row public.paces;
+  current_user_id uuid;
+begin
+  current_user_id := auth.uid();
+
+  if current_user_id is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if title_arg is null or length(trim(title_arg)) = 0 then
+    raise exception 'Pace title is required';
+  end if;
+
+  perform public.ensure_user_profile(null, null);
+
+  insert into public.paces (
+    owner_id,
+    title,
+    description,
+    mood,
+    cover_url,
+    color_theme
+  )
+  values (
+    current_user_id,
+    trim(title_arg),
+    nullif(trim(coalesce(description_arg, '')), ''),
+    mood_arg,
+    cover_url_arg,
+    coalesce(color_theme_arg, 'from-[#d2c5b1]/25 via-[#62594d]/10 to-[#8f6b67]/25')
+  )
+  returning * into pace_row;
+
+  insert into public.pace_members (pace_id, user_id, role)
+  values (pace_row.id, current_user_id, 'owner')
+  on conflict (pace_id, user_id) do update set role = 'owner';
+
+  return pace_row;
+end;
+$$;
+
+grant execute on function public.create_pace(text, text, public.pace_mood, text, text) to authenticated;
+
 create index paces_owner_id_idx on public.paces(owner_id);
 create index pace_members_user_id_idx on public.pace_members(user_id);
 create index memories_pace_id_memory_at_idx on public.memories(pace_id, memory_at desc);
 create index pace_invites_token_idx on public.pace_invites(token);
+
+insert into storage.buckets (id, name, public)
+values ('pace-media', 'pace-media', true)
+on conflict (id) do nothing;
+
+create policy "pace media is readable"
+  on storage.objects for select
+  using (bucket_id = 'pace-media');
+
+create policy "members can upload pace media"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'pace-media'
+    and public.is_pace_member((storage.foldername(name))[1]::uuid)
+  );
+
+create policy "members can update own pace media"
+  on storage.objects for update
+  using (
+    bucket_id = 'pace-media'
+    and owner = auth.uid()
+    and public.is_pace_member((storage.foldername(name))[1]::uuid)
+  );

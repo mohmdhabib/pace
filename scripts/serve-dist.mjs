@@ -1,10 +1,11 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const port = Number(process.env.PORT || 5173);
-const host = process.env.HOST || "localhost";
-const root = normalize(new URL("../dist", import.meta.url).pathname.slice(1));
+const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || "127.0.0.1";
+const root = normalize(fileURLToPath(new URL("../dist", import.meta.url)));
 
 const types = {
   ".html": "text/html; charset=utf-8",
