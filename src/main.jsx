@@ -1,3 +1,44 @@
+/**
+ * ============================================================================
+ * FILE NAME: main.jsx
+ * TYPE: Application Root Entrypoint & State Orchestrator
+ * PURPOSE: The heart of the Pace application. It initializes the React DOM root,
+ *          orchestrates global application states (loaded spaces, active posts, user auth
+ *          credentials, modal toggles, and invitation parameters), manages background DB
+ *          listeners, and coordinates core transaction methods (creating, editing, and archiving).
+ * 
+ * WHAT HAPPENS IN THIS FILE:
+ * 1. Imports React hook controllers, Framer Motion animators, Lucide SVG icons, Supabase configuration
+ *    libraries, database services, and all modular view components.
+ * 2. Mounts auxiliary visual elements:
+ *    - `Ambient()`: Renders glassmorphic blurred radial gradient circles on the background.
+ *    - `FilmGrain()`: Renders a fine transparent film-grain visual overlay layer to capture the physical,
+ *      cinematic scrapbook brand look.
+ * 3. Mounts the central state component `App()`:
+ *    - Connects global React states (started onboarding, authenticated user sessions, loaded spaces list,
+ *      scraped memories feed, selected active space, URL invite tokens, modal tags, and connection statuses).
+ *    - Handles startup side-effects (`useEffect`): implements an automated 2.5s fallback timeout to bypass
+ *      "unlocking pace" loading locks in case of network disruptions; fetches initial logged-in user profile
+ *      rows and Paces; registers real-time authentication listener triggers.
+ *    - Manages active timeline side-effects (`useEffect`): fetches memory timelines when space IDs change,
+ *      registering active real-time WebSockets to push new memory posts instantly.
+ *    - Integrates invitation landing side-effects (`useEffect`): parses token query strings to resolve invitation hosts.
+ *    - Defines transaction methods wrapping local offline arrays and Supabase API structures
+ *      (create, update, archive, and unarchive paces; add memories; create invite links).
+ *    - Renders the view conditional shell wrapping layout screens (`Onboarding`, `Shell`) in AnimatePresence fades.
+ *    - Coordinates all overlays modals (`CreatePace`, `EditPace`, `AddMemory`, `CapsuleLockModal`, `InviteFriends`, `JoinPaceModal`).
+ * 4. Triggers `render()` to append the React tree onto the `#root` index.html container.
+ * 
+ * KEY IMPORTS & DEPENDENCIES:
+ * - `React`, `{ useEffect, useState }`: Drives global app hooks.
+ * - `createRoot` from "react-dom/client": Attaches React engine to index.html nodes.
+ * - `AnimatePresence`, `motion` from "framer-motion": Handles smooth unmount overlay fades.
+ * - `{ supabase }` & APIs from "./lib/supabase", "./lib/paceApi", "./lib/inviteApi":
+ *   Communicates with our Supabase Postgres backend tables and file storage systems.
+ * - Views and Features: unified screens coordinating different capabilities.
+ * ============================================================================
+ */
+
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AnimatePresence, motion } from "framer-motion";
@@ -28,7 +69,7 @@ import {
 } from "./lib/supabase";
 import { fetchInviteDetails } from "./lib/inviteApi";
 
-// Modular FSD imports
+// Modular Feature-Sliced Design (FSD) imports
 import { covers, paces, memories, moods } from "./shared/constants";
 import { isLiveId, formatSyncError, readableSupabaseError } from "./shared/utils";
 import Onboarding from "./features/auth/Onboarding";
@@ -39,14 +80,19 @@ import EditPace from "./features/spaces/EditPace";
 import InviteFriends from "./features/spaces/InviteFriends";
 import AddMemory from "./features/memories/AddMemory";
 
-// Auxiliary pre-separated components
+// Auxiliary overlay components
 import JoinPaceModal from "./components/JoinPaceModal";
 import CapsuleLockModal from "./components/CapsuleLockModal";
 import "./styles.css";
 
+/**
+ * Ambient Component
+ * Renders aesthetic glassmorphic blurred color circles in the dashboard background.
+ */
 function Ambient() {
   return (
     <div className="pointer-events-none fixed inset-0 bg-grain">
+      {/* Three colorful radial circles positioned strategically to create visual depth */}
       <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#c6b79d]/10 blur-3xl" />
       <div className="absolute -right-28 top-1/3 h-80 w-80 rounded-full bg-[#8f6b67]/12 blur-3xl" />
       <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#7d8577]/10 blur-3xl" />
@@ -54,19 +100,29 @@ function Ambient() {
   );
 }
 
+/**
+ * FilmGrain Component
+ * Overlays a translucent film grain image texture to capture a vintage physical look.
+ */
 function FilmGrain() {
   return <div className="grain pointer-events-none fixed inset-0 z-50 opacity-[0.075]" />;
 }
 
+/**
+ * App Main Orchestrator Component
+ */
 function App() {
-  const [started, setStarted] = useState(false);
-  const [session, setSession] = useState(null);
-  const [appPaces, setAppPaces] = useState(paces);
-  const [appMemories, setAppMemories] = useState(memories);
-  const [activePace, setActivePace] = useState(paces[0]);
-  const [view, setView] = useState("home");
-  const [modal, setModal] = useState(null);
-  const [invite, setInvite] = useState(null);
+  // --- GLOBAL STATES ---
+  const [started, setStarted] = useState(false); // Flags narrative onboarding completion
+  const [session, setSession] = useState(null); // Holds logged-in user profile details (null if offline sandbox guest)
+  const [appPaces, setAppPaces] = useState(paces); // Paces space models array (defaults to fallback mock datasets)
+  const [appMemories, setAppMemories] = useState(memories); // Memories feed lists array
+  const [activePace, setActivePace] = useState(paces[0]); // Active space pointer loaded in timeline
+  const [view, setView] = useState("home"); // Page router track state ('home', 'timeline', 'profile')
+  const [modal, setModal] = useState(null); // Active overlay modal state ('create', 'edit-pace', etc.)
+  const [invite, setInvite] = useState(null); // Created invite tokens parameter context
+  
+  // Parses URL query string to search for active invite codes (e.g. ?invite=abc-123)
   const [pendingInvite, setPendingInvite] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -75,11 +131,17 @@ function App() {
     }
     return null;
   });
+  
+  // Syncing banner logs
   const [syncStatus, setSyncStatus] = useState(
     isSupabaseConfigured ? "Connect to sync private Paces" : "Prototype mode"
   );
+  
+  // Preloading check tracking cached profiles (avoids screen flickering during initial loads)
   const [loadingSession, setLoadingSession] = useState(isSupabaseConfigured);
 
+  // --- LOGOUT SESSION RESETTER ---
+  // Restores all local collections to pre-configured fallback mockup constants on sign-out
   function resetToSignedOut() {
     setSession(null);
     setStarted(false);
@@ -91,6 +153,7 @@ function App() {
     setSyncStatus(isSupabaseConfigured ? "Signed out" : "Prototype mode");
   }
 
+  // Calls Supabase Auth sign-out and updates local state
   async function handleSignOut() {
     try {
       await signOut();
@@ -101,11 +164,12 @@ function App() {
     }
   }
 
+  // --- EFFECT 1: STARTUP AUTH AND PACES LOADER ---
   useEffect(() => {
     let isMounted = true;
     let initialLoadDone = false;
 
-    // Safety Timeout: 2.5s fallback to prevent getting stuck in "unlocking pace"
+    // Safety Timeout: 2.5s fallback to prevent getting stuck in "unlocking pace" preloader on slow nets
     const safetyTimeout = setTimeout(() => {
       if (isMounted && !initialLoadDone) {
         console.warn("Unlocking pace session loading timed out. Force bypassing safety lock.");
@@ -114,17 +178,22 @@ function App() {
       }
     }, 2500);
 
+    // Queries Spaces list from backend tables
     async function loadPacesForSession(currentSession) {
       if (!currentSession) {
         setSyncStatus("Sign in to unlock private sync");
         return;
       }
       try {
+        // Upserts a profile record inside profiles table to prevent foreign keys breaks
         await ensureProfile(currentSession.user);
+        
+        // SELECT query fetching all paces current user owns or is a member of
         const livePaces = await fetchPaces();
         if (!isMounted) return;
 
         if (livePaces.length) {
+          // Flatten relational structures, assigning visual covers sequentially
           const hydrated = livePaces.map((pace, index) => ({
             ...pace,
             cover: pace.cover || covers[index % covers.length]
@@ -132,18 +201,18 @@ function App() {
           setAppPaces(hydrated);
           setActivePace(hydrated[0]);
           setSyncStatus("Synced privately");
-          setStarted(true); // Automatically bypass onboarding if a live session exists
+          setStarted(true); // Auto-bypasses brand slides if active session matches
         } else {
           setAppPaces([]);
           setActivePace(null);
           setSyncStatus("Signed in. Create your first Pace.");
-          setStarted(true); // Automatically bypass onboarding if a live session exists
+          setStarted(true); // Auto-bypasses brand slides if new user registers
         }
       } catch (err) {
         console.error("Error loading paces for session:", err);
         if (isMounted) {
           setSyncStatus(formatSyncError(err));
-          // Self-healing auth check: if the session has expired or is invalid, clean it up automatically
+          // Self-healing auth check: if session JWT is invalid or expired, automatically clean up local state
           const errMsg = err?.message || "";
           if (
             errMsg.includes("JWT") ||
@@ -165,6 +234,7 @@ function App() {
       }
     }
 
+    // Identifies cached local credentials
     async function initSession() {
       if (!isSupabaseConfigured) {
         setLoadingSession(false);
@@ -191,14 +261,13 @@ function App() {
 
     initSession();
 
+    // Registers reactive user observer triggers
     const unsubscribe = onAuthChange(async (nextSession) => {
       if (!isMounted) return;
-      
-      // Prevent running auth change handlers during initial session fetch
-      if (!initialLoadDone) return;
+      if (!initialLoadDone) return; // Prevent loop conflicts during pre-load queries
       
       setSession((currentSession) => {
-        // If session didn't actually change, do nothing to prevent query loops
+        // Prevent unnecessary query loops if credentials didn't change
         if (currentSession?.user?.id === nextSession?.user?.id) {
           return currentSession;
         }
@@ -213,6 +282,7 @@ function App() {
       });
     });
 
+    // Cleanup hook: unmounts listeners and cancels safeties
     return () => {
       isMounted = false;
       clearTimeout(safetyTimeout);
@@ -220,11 +290,15 @@ function App() {
     };
   }, []);
 
-  // Sync memories in real-time
+  // --- EFFECT 2: MEMORIES LOADER & WEBSOCKET SYNCING ---
+  // Re-runs whenever the user enters a different space timeline view (updates activePace.id)
   useEffect(() => {
+    // If Space is an offline mock constant (chennai, semester, sidegig), skip database queries
     if (!activePace?.id || !isLiveId(activePace.id)) return;
 
     let isMounted = true;
+    
+    // Fetch timeline posts list
     async function loadMemories() {
       try {
         const data = await fetchMemories(activePace.id);
@@ -235,32 +309,35 @@ function App() {
     }
     loadMemories();
 
+    // Registers active WebSocket channel listening to insert operations filtered by pace_id
     const unsubscribe = subscribeToMemories(activePace.id, (newMemory) => {
       if (isMounted) {
         setAppMemories((current) => {
+          // Double-check duplicate tokens to avoid overlap renders
           const duplicate = current.find((m) => m.id === newMemory.id);
           if (duplicate) return current;
-          return [newMemory, ...current];
+          return [newMemory, ...current]; // Push new post to top of array
         });
       }
     });
 
     return () => {
       isMounted = false;
-      if (unsubscribe) unsubscribe();
+      if (unsubscribe) unsubscribe(); // Closes WebSocket connection
     };
   }, [activePace?.id]);
 
-  // Load invite details on token query
+  // --- EFFECT 3: LANDING PAGE INVITATIONS RESOLVER ---
   useEffect(() => {
     if (!pendingInvite?.token || !pendingInvite?.loading) return;
 
     let isMounted = true;
     async function resolveInvite() {
       try {
+        // Runs RPC stored procedures verifying invite details prior to login registration
         const details = await fetchInviteDetails(pendingInvite.token);
         if (isMounted) {
-          setPendingInvite(details);
+          setPendingInvite(details); // Updates invite metadata payload to render JoinPaceModal
         }
       } catch (error) {
         console.error("Error resolving invite token:", error);
@@ -277,7 +354,11 @@ function App() {
     };
   }, [pendingInvite]);
 
+  // --- TRANSACTION METHODS ---
+
+  // Writes a new Pace space row to database
   async function handleCreatePace(form) {
+    // CASE 1: OFFLINE SANDBOX MODE GUESTS
     if (!session && !isSupabaseConfigured) {
       const demoId = `pace-demo-${Date.now()}`;
       const theme = themeByMood[form.mood] || themeByMood.nostalgic;
@@ -297,19 +378,23 @@ function App() {
       return demoPace;
     }
 
+    // CASE 2: CLOUD AUTHENTICATED USER
     const userId = session?.user?.id;
     if (!userId) {
       throw new Error("Sign in again before creating a new Pace.");
     }
 
     try {
+      // Calls API library to execute TRANSACTION RPCs
       const livePace = await createPace(form);
       let finalCover = livePace.cover || form.coverUrl;
 
+      // Handles custom covers uploads to Storage Buckets if visual file is selected
       if (form.file) {
         try {
           const uploadedUrl = await uploadMemoryFile({ paceId: livePace.id, file: form.file });
-          const updatedRow = await updatePace(livePace.id, { cover_url: uploadedUrl });
+          // Updates pace cover_url reference
+          await updatePace(livePace.id, { cover_url: uploadedUrl });
           finalCover = uploadedUrl;
         } catch (uploadError) {
           console.error("Custom cover upload failed, falling back to preset:", uploadError);
@@ -327,9 +412,11 @@ function App() {
     }
   }
 
+  // Updates Pace visual layout configurations
   async function handleUpdatePace(form) {
     if (!activePace?.id) return;
 
+    // OFFLINE GUEST SHORTCUT
     if (!session && !isSupabaseConfigured) {
       const updated = {
         ...activePace,
@@ -347,6 +434,7 @@ function App() {
       return;
     }
 
+    // CLOUD WRITE
     try {
       let finalCover = form.coverUrl;
       if (form.file) {
@@ -377,6 +465,7 @@ function App() {
     }
   }
 
+  // Soft-archives a Pace
   async function handleArchivePace(paceId) {
     if (!session && !isSupabaseConfigured) {
       setAppPaces((current) =>
@@ -403,6 +492,7 @@ function App() {
     }
   }
 
+  // Restores an archived Pace back to active listing
   async function handleUnarchivePace(paceId) {
     if (!session && !isSupabaseConfigured) {
       setAppPaces((current) =>
@@ -423,6 +513,7 @@ function App() {
     }
   }
 
+  // Saves a new memory post
   async function handleCreateMemory(form) {
     let mediaUrl = form.mediaUrl;
     const fallbackMemory = {
@@ -433,6 +524,7 @@ function App() {
       date: "Today",
       caption: form.caption,
       image: form.previewUrl || mediaUrl,
+      mediaUrl: form.previewUrl || mediaUrl,
       mood: form.mood,
       location: form.locationName
     };
@@ -455,6 +547,7 @@ function App() {
     setAppMemories((current) => [liveMemory, ...current]);
   }
 
+  // Generates single-use secure invites link
   async function handleCreateInvite(form) {
     if (!session || !isLiveId(activePace?.id)) {
       const localInvite = {
@@ -474,16 +567,20 @@ function App() {
     return liveInvite;
   }
 
+  // Dynamic filter displaying cloud synced paces only when logged in
   const displayedPaces = session
     ? appPaces.filter((p) => isLiveId(p.id))
     : appPaces;
 
   return (
-    <main className="min-h-screen overflow-y-auto bg-pace-black text-pace-pearl selection:bg-pace-bone selection:text-pace-black">
+    <main className="min-h-screen w-full overflow-y-auto bg-pace-black text-pace-pearl selection:bg-pace-bone selection:text-pace-black">
       <Ambient />
       <FilmGrain />
+      
+      {/* Conditional Root Router Views */}
       <AnimatePresence mode="wait">
         {loadingSession ? (
+          // VIEW 1: STARTUP LOGO LOADING SCREEN
           <motion.div
             key="loading-session"
             initial={{ opacity: 0 }}
@@ -499,6 +596,7 @@ function App() {
             </div>
           </motion.div>
         ) : !started ? (
+          // VIEW 2: WELCOME STORY & AUTH SCREENS
           <Onboarding
             key="onboarding"
             onBegin={() => setStarted(true)}
@@ -512,6 +610,7 @@ function App() {
             syncStatus={syncStatus}
           />
         ) : (
+          // VIEW 3: MAIN APPLICATION VIEW PORT PORTAL SHELL
           <Shell
             key="app"
             paces={displayedPaces}
@@ -528,20 +627,25 @@ function App() {
         )}
       </AnimatePresence>
 
-      {/* Modal Orchestrator overlays */}
+      {/* OVERLAY DIALOG MODAL ORCHESTRATOR */}
       <AnimatePresence>
+        {/* Create Pace Dialog */}
         {modal === "create" && (
           <CreatePace
+            maxWidth="max-w-[430px]"
             onClose={() => setModal(null)}
             onCreate={async (form) => {
               await handleCreatePace(form);
               setModal(null);
-              setView("timeline");
+              setView("timeline"); // Auto navigate timeline
             }}
           />
         )}
+        
+        {/* Edit Pace Settings Dialog */}
         {modal === "edit-pace" && (
           <EditPace
+            maxWidth="max-w-[430px]"
             pace={activePace}
             onClose={() => setModal(null)}
             onUpdate={async (form) => {
@@ -560,8 +664,11 @@ function App() {
             }}
           />
         )}
+        
+        {/* Add Memory Post Dialog */}
         {modal === "memory" && (
           <AddMemory
+            maxWidth="max-w-[430px]"
             onClose={() => setModal(null)}
             onCreate={async (form) => {
               await handleCreateMemory(form);
@@ -569,14 +676,20 @@ function App() {
             }}
           />
         )}
+        
+        {/* Lock Info explainer Dialog */}
         {modal === "capsule" && (
           <CapsuleLockModal 
+            maxWidth="max-w-[430px]"
             onClose={() => setModal(null)} 
             activePace={activePace} 
           />
         )}
+        
+        {/* Generate Invite Links Dialog */}
         {modal === "invite" && (
           <InviteFriends
+            maxWidth="max-w-[430px]"
             invite={invite}
             onClose={() => {
               setModal(null);
@@ -585,6 +698,8 @@ function App() {
             onCreate={handleCreateInvite}
           />
         )}
+        
+        {/* Guest resolving Landing page join overlays */}
         {pendingInvite && (
           <JoinPaceModal
             invite={pendingInvite}
@@ -595,11 +710,14 @@ function App() {
             syncStatus={syncStatus}
             onSuccess={async (paceId) => {
               setPendingInvite(null);
+              
+              // Removes invite parameters URL query strings from active address bar silently
               const url = new URL(window.location.href);
               url.searchParams.delete("invite");
               window.history.replaceState({}, document.title, url.pathname);
 
               try {
+                // Instantly reloads spaces lists
                 const livePaces = await fetchPaces();
                 if (livePaces.length) {
                   const hydrated = livePaces.map((p, idx) => ({
@@ -607,10 +725,11 @@ function App() {
                     cover: p.cover || covers[idx % covers.length]
                   }));
                   setAppPaces(hydrated);
+                  // Identifies newly joined space row pointer
                   const matched = hydrated.find((p) => p.id === paceId) || hydrated[0];
                   setActivePace(matched);
                   setStarted(true);
-                  setView("timeline");
+                  setView("timeline"); // Direct route to timeline
                 }
               } catch (err) {
                 console.error("Error refreshing paces after join:", err);
@@ -623,4 +742,5 @@ function App() {
   );
 }
 
+// Render tree initialization
 createRoot(document.getElementById("root")).render(<App />);

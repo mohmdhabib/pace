@@ -1,3 +1,33 @@
+/**
+ * ============================================================================
+ * FILE NAME: Shell.jsx
+ * TYPE: View Layout Shell Orchestrator
+ * PURPOSE: Acts as the primary router and dashboard shell within the simulated mobile environment.
+ *          It swaps between three core views (Home dashboard list, individual Space Timelines,
+ *          and User Profile settings) while driving cohesive spring slide-and-fade page transitions.
+ * 
+ * WHAT HAPPENS IN THIS FILE:
+ * 1. Defines helper components:
+ *    - `AIRecap`: Renders a premium, aesthetic summarizing block indicating emotional AI recaps of the era.
+ *    - `MemoryCard`: Generates memory articles (Photo, Voice note, Text quotes). It checks if a memory
+ *      is locked (`lockedUntil` timestamp compared against `now`). If locked, it layers `LockedMemoryOverlay`
+ *      on top and muting content text.
+ *    - `Home`: Standard dashboard listing active spaces horizontally. Supports a toggleable archived drawer
+ *      housing dormant spaces, and a floating create button.
+ *    - `Timeline`: Individual space layouts rendering deep backdrop covers, active group list badges, and the
+ *      feed scroll containing recap cards and memory posts.
+ * 2. Shell (Main Entry Component) acts as the high-level conditional switch, wrapping these components
+ *    in `<AnimatePresence>` to trigger premium transitions.
+ * 
+ * KEY IMPORTS & DEPENDENCIES:
+ * - `React`, `{ useState }` from "react": Manages toggles (archived drawer, active countdowns).
+ * - `motion`, `AnimatePresence` from "framer-motion": Essential for horizontal page slides, drawer expansions,
+ *   and entry fades.
+ * - Icons from "lucide-react": Renders clean interface buttons.
+ * - Sub-features: `PaceCard` album grids, `VoiceNote` waveforms, and `LockedMemoryOverlay` screens.
+ * ============================================================================
+ */
+
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -18,20 +48,24 @@ import LockedMemoryOverlay from "../components/LockedMemoryOverlay";
 import PhoneChrome from "../shared/ui/PhoneChrome";
 import Profile from "./Profile";
 
-
+/**
+ * AIRecap Sub-Component
+ * Renders a stylish summary card explaining overall memory moods.
+ */
 function AIRecap() {
   return (
     <motion.section
-      className="mb-5 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 backdrop-blur-2xl"
+      className="mb-5 rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 backdrop-blur-2xl text-left"
+      // Viewport scroll triggered animations: slides up slightly when scrolled into view
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
     >
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-pace-smoke">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-pace-smoke font-semibold">
         <Bot size={14} />
         AI recap
       </div>
-      <p className="mt-3 text-lg font-medium leading-7">
+      <p className="mt-3 text-lg font-medium leading-7 text-pace-pearl">
         April felt chaotic, loud, unforgettable, and strangely beautiful.
       </p>
       <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[11px] text-pace-bone">
@@ -43,39 +77,58 @@ function AIRecap() {
   );
 }
 
+/**
+ * MemoryCard Sub-Component
+ * Renders an individual memory item (Photo, Voice note spectrograph, Text card) in a feed.
+ * @param {Object} props
+ * @param {Object} props.memory - The parsed memory item details.
+ * @param {Number} props.index - Row index in list, used to stagger elements left/right organically.
+ */
 function MemoryCard({ memory, index }) {
+  // Evaluates if the memory post should be locked under time-lock parameters
   const [isTimeLocked, setIsTimeLocked] = useState(
     memory.lockedUntil ? new Date(memory.lockedUntil) > new Date() : false
   );
 
   return (
     <motion.article
-      className={`mb-6 ${index % 2 ? "pl-8" : "pr-8"}`}
+      // Alternates paddings (pl-8 or pr-8) based on odd/even indices to simulate an organic, hand-placed scrapbooking layout
+      className={`mb-6 ${index % 2 ? "pl-8 text-left" : "pr-8 text-left"}`}
       initial={{ opacity: 0, y: 22 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
+      viewport={{ once: true, margin: "-80px" }} // Triggers slightly before fully scrolled in
       transition={{ duration: 0.55 }}
     >
-      <div className="mb-3 flex items-center justify-between text-xs text-pace-smoke">
+      {/* Date metadata banner */}
+      <div className="mb-3 flex items-center justify-between text-xs text-pace-smoke uppercase tracking-wider font-semibold">
         <span>{memory.date}</span>
         <span>{memory.time}</span>
       </div>
+      
+      {/* Primary Visual Content box */}
       <div className="relative memory-card rounded-[1.4rem] border border-white/10 bg-[#f4eee3] p-2 text-pace-black shadow-soft overflow-hidden">
+        {/* If locked, overlay standard frosted lock screen blocking visual contents */}
         {isTimeLocked && (
           <LockedMemoryOverlay
             lockedUntil={memory.lockedUntil}
-            onUnlock={() => setIsTimeLocked(false)}
+            onUnlock={() => setIsTimeLocked(false)} // Callback unlocks visually in real time!
           />
         )}
 
+        {/* PHOTO memories rendering */}
         {memory.type === "photo" && (
           <img
+            // If locked, swap image src for a low-res blurred thumbnail preset
             src={isTimeLocked ? "https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=10&q=10" : memory.image}
             alt=""
             className="aspect-[4/5] w-full rounded-[1rem] object-cover"
           />
         )}
-        {memory.type === "voice" && <VoiceNote />}
+        
+        {/* VOICE notes rendering */}
+        {memory.type === "voice" && <VoiceNote url={memory.mediaUrl} />}
+        
+        {/* NOTE text memories rendering */}
         {memory.type === "text" && (
           <div className="grid min-h-64 place-items-center rounded-[1rem] bg-[#191816] p-6 text-center text-pace-pearl">
             <p className="text-2xl font-medium leading-tight">
@@ -83,6 +136,8 @@ function MemoryCard({ memory, index }) {
             </p>
           </div>
         )}
+        
+        {/* Render text descriptions beneath non-text uploads (Photo, Voice, Video) */}
         {memory.type !== "text" && (
           <div className="px-2 pb-2 pt-3">
             <p className="font-medium leading-6">
@@ -91,15 +146,21 @@ function MemoryCard({ memory, index }) {
           </div>
         )}
       </div>
-      <p className="mt-3 text-xs text-pace-smoke">
+      
+      {/* Creator metadata */}
+      <p className="mt-3 text-xs text-pace-smoke font-medium">
         {memory.author} · {memory.mood}
       </p>
     </motion.article>
   );
 }
 
+/**
+ * Home Sub-Component
+ * Renders the main dashboard containing all active Spaces.
+ */
 function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) {
-  const [showArchived, setShowArchived] = useState(false);
+  const [showArchived, setShowArchived] = useState(false); // Archive drawer state
 
   const activePaces = paces.filter((p) => !p.archivedAt);
   const archivedPaces = paces.filter((p) => p.archivedAt);
@@ -112,17 +173,19 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
       exit={{ opacity: 0 }}
     >
       <div className="no-scrollbar flex-1 overflow-y-auto pb-24">
-        <header className="px-5 pb-3 pt-8">
+        {/* Dashboard Header banner */}
+        <header className="px-5 pb-3 pt-8 text-left">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-pace-smoke">{syncStatus}</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-pace-smoke font-semibold">{syncStatus}</p>
               <h1 className="mt-2 text-4xl font-semibold leading-none">Pace</h1>
               {session?.user?.email && (
-                <p className="mt-2 max-w-[12rem] truncate text-xs text-pace-bone">{session.user.email}</p>
+                <p className="mt-2 max-w-[12rem] truncate text-xs text-pace-bone font-medium">{session.user.email}</p>
               )}
             </div>
+            {/* Navigates users to User Settings & archived stats */}
             <button
-              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-pace-bone backdrop-blur-xl hover:bg-white/[0.12] transition duration-200"
+              className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-pace-bone backdrop-blur-xl hover:bg-white/[0.12] transition duration-200 active:scale-95"
               onClick={() => setView("profile")}
               aria-label="Open profile"
             >
@@ -134,7 +197,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
           </p>
         </header>
 
-        {/* Active Paces horizontal list */}
+        {/* Horizontal Scrolling Active Spaces Grid */}
         <div className="no-scrollbar flex snap-x gap-4 overflow-x-auto px-5 pb-8 pt-2">
           {activePaces.length > 0 ? (
             activePaces.map((pace) => (
@@ -143,13 +206,14 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
                 key={pace.id}
                 onOpen={() => {
                   setActivePace(pace);
-                  setView("timeline");
+                  setView("timeline"); // Switch active tab views
                 }}
               />
             ))
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center text-center p-8 border border-white/5 bg-white/[0.02] rounded-[2rem] min-h-[30rem] w-full snaps-center">
-              <div className="grid h-14 w-14 place-items-center rounded-full bg-pace-pearl/10 border border-pace-pearl/20 text-pace-pearl mb-4">
+            // Placeholder shown if users have no active spaces
+            <div className="flex flex-1 flex-col items-center justify-center text-center p-8 border border-white/5 bg-white/[0.02] rounded-[2rem] min-h-[30rem] w-full snap-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-pace-pearl/10 border border-pace-pearl/20 text-pace-pearl mb-4">
                 <Sparkles size={20} className="animate-pulse" />
               </div>
               <h3 className="text-base font-semibold text-pace-pearl">Your first era awaits</h3>
@@ -160,7 +224,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
           )}
         </div>
 
-        {/* Soft Archival Hub Drawer */}
+        {/* Archived Spaces segment (Hidden if empty) */}
         {archivedPaces.length > 0 && (
           <div className="px-5 pb-8 pt-4 flex flex-col border-t border-white/[0.04] mt-4">
             <button
@@ -171,6 +235,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
               <span>{showArchived ? "Hide Archived Eras" : `Show Archived Eras (${archivedPaces.length})`}</span>
             </button>
 
+            {/* smooth collapsible frame displaying archived card streams */}
             <AnimatePresence>
               {showArchived && (
                 <motion.div
@@ -197,7 +262,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
         )}
       </div>
 
-      {/* Floating Create Pace Button */}
+      {/* Floating Plus Button to trigger Space Creator overlays */}
       <div className="absolute bottom-5 left-1/2 z-30 -translate-x-1/2 w-max">
         <button
           className="flex h-14 items-center gap-2 rounded-full border border-white/15 bg-pace-pearl px-5 text-sm font-semibold text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02]"
@@ -211,25 +276,35 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
   );
 }
 
+/**
+ * Timeline Sub-Component
+ * Renders the vertical feed scrolls for a specific selected space.
+ */
 function Timeline({ pace, memories, setView, setModal }) {
   return (
     <motion.div
       className="relative flex flex-1 flex-col overflow-hidden"
+      // Slides in from the right to represent pushing details in mobile transitions
       initial={{ opacity: 0, x: 26 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="relative h-72 overflow-hidden">
+      {/* Large header cover graphic segment */}
+      <div className="relative h-72 overflow-hidden text-left">
         <img src={pace.cover} alt="" className="h-full w-full object-cover opacity-75" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/20 to-[#0d0d0c]" />
+        
+        {/* Navigation back home */}
         <button
-          className="absolute left-5 top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl"
+          className="absolute left-5 top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl active:scale-95 transition"
           onClick={() => setView("home")}
           aria-label="Back home"
         >
           <ChevronLeft size={20} />
         </button>
+        
+        {/* Settings button to manage space Row details */}
         <button
           className="absolute right-[8.5rem] top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
           onClick={() => setModal("edit-pace")}
@@ -237,39 +312,49 @@ function Timeline({ pace, memories, setView, setModal }) {
         >
           <Settings size={17} />
         </button>
+        
+        {/* Invite friends overlay trigger */}
         <button
-          className="absolute right-[4.75rem] top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl"
+          className="absolute right-[4.75rem] top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
           onClick={() => setModal("invite")}
           aria-label="Invite friends"
         >
           <Users size={17} />
         </button>
+        
+        {/* Explainer modal for capsule locks */}
         <button
-          className="absolute right-5 top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl"
+          className="absolute right-5 top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
           onClick={() => setModal("capsule")}
           aria-label="Open capsule"
         >
           <Lock size={17} />
         </button>
+        
+        {/* Space Title texts pinned to the bottom of the header */}
         <div className="absolute bottom-5 left-5 right-5">
-          <p className="text-xs uppercase tracking-[0.22em] text-pace-bone/75">{pace.mood}</p>
-          <h1 className="mt-2 text-4xl font-semibold leading-none">{pace.title}</h1>
+          <p className="text-xs uppercase tracking-[0.22em] text-pace-bone/75 font-semibold">{pace.mood}</p>
+          <h1 className="mt-2 text-4xl font-semibold leading-none text-pace-pearl">{pace.title}</h1>
           <div className="mt-4 flex items-center gap-3 text-xs text-pace-bone">
-            <span className="flex items-center gap-1">
-              <Users size={14} />
+            <span className="flex items-center gap-1 font-semibold">
+              <Users size={14} className="text-pace-smoke" />
               {pace.members.join(", ")}
             </span>
           </div>
         </div>
       </div>
+      
+      {/* Scrollable list mapping memories */}
       <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-24">
         <AIRecap />
         {memories.map((memory, index) => (
           <MemoryCard memory={memory} key={`${memory.type}-${index}`} index={index} />
         ))}
       </div>
+      
+      {/* Add new memory floating pill */}
       <button
-        className="absolute bottom-5 right-5 grid h-14 w-14 place-items-center rounded-full bg-pace-pearl text-pace-black shadow-glow transition active:scale-[0.98]"
+        className="absolute bottom-5 right-5 grid h-14 w-14 place-items-center rounded-full bg-pace-pearl text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02]"
         onClick={() => setModal("memory")}
         aria-label="Add memory"
       >
@@ -279,6 +364,9 @@ function Timeline({ pace, memories, setView, setModal }) {
   );
 }
 
+/**
+ * Shell main router wrapper
+ */
 export default function Shell({
   paces,
   memories,
@@ -292,7 +380,8 @@ export default function Shell({
   onSignOut
 }) {
   return (
-    <PhoneChrome>
+    <PhoneChrome maxWidth="max-w-[430px]">
+      {/* AnimatePresence triggers exit fades on keyed sub-components as they unmount */}
       <AnimatePresence mode="wait">
         {view === "home" && (
           <Home

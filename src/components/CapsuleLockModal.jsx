@@ -1,9 +1,41 @@
+/**
+ * ============================================================================
+ * FILE NAME: CapsuleLockModal.jsx
+ * TYPE: Modal Overlay Component
+ * PURPOSE: A high-fidelity instructional overlay designed to explain the concept
+ *          and mechanics of the "Time-Lock Capsule" feature to the user. It warns
+ *          them of the secure/permanent locking mechanics and details the presets.
+ * 
+ * WHAT HAPPENS IN THIS FILE:
+ * 1. The component receives an `onClose` callback and details about the `activePace`.
+ * 2. It wraps itself in standard animated blur backdrops using Framer Motion overlay settings.
+ * 3. Shows a premium interactive lock badge that grows, shrinks, and shines infinitely
+ *    using keyframed box-shadow glows.
+ * 4. Highlights a warning alert clarifying that locking is absolute and irreversible
+ *    until the time limit is reached.
+ * 5. Iterates through 4 potential presets (1 minute, graduation, next summer, 1 year)
+ *    to explain how they can lock posts during creation.
+ * 6. Includes a final confirmation button that dismisses the explainer.
+ * 
+ * KEY IMPORTS & DEPENDENCIES:
+ * - `React` from "react": Required for functional components.
+ * - `motion` from "framer-motion": Handles smooth bouncing spring scales and glowing shadow indicators.
+ * - Icons from "lucide-react": Lock, Clock, Calendar, Check, AlertCircle.
+ * ============================================================================
+ */
+
 import React from "react";
 import { motion } from "framer-motion";
 import { Lock, Clock, Calendar, Check, AlertCircle } from "lucide-react";
 
-export default function CapsuleLockModal({ onClose, activePace }) {
-  // Static time-locking informational screen with gorgeous interactive cards
+/**
+ * CapsuleLockModal Component
+ * @param {Object} props
+ * @param {Function} props.onClose - Action callback when dismisses modal.
+ * @param {Object} props.activePace - The active Space model info context.
+ */
+export default function CapsuleLockModal({ onClose, activePace, maxWidth = "max-w-[485px]" }) {
+  // Pre-configured list of mock capsule locking options mapped out as explanations
   const presets = [
     { label: "Open in 1 minute", duration: "1m", desc: "Perfect for testing countdowns and real-time unlocks!" },
     { label: "Open after graduation", duration: "grad", desc: "Time-lock memories until you finish the era." },
@@ -13,6 +45,7 @@ export default function CapsuleLockModal({ onClose, activePace }) {
 
   return (
     <motion.div
+      // Frosted backdrop overlay container
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4 backdrop-blur-lg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -20,14 +53,15 @@ export default function CapsuleLockModal({ onClose, activePace }) {
       onClick={onClose}
     >
       <motion.div
-        className="w-full max-w-[485px] overflow-hidden rounded-[2.2rem] border border-white/10 bg-[#0d0d0c]/90 p-6 shadow-glow backdrop-blur-2xl text-left"
+        // Central glassmorphic modal box
+        className={`w-full ${maxWidth} overflow-hidden rounded-[2.2rem] border border-white/10 bg-[#0d0d0c]/90 p-6 shadow-glow backdrop-blur-2xl text-left`}
         initial={{ scale: 0.94, y: 30 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.94, y: 30 }}
         transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.45 }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()} // Prevents overlay click from closing this card immediately
       >
-        {/* Header */}
+        {/* Header Title block */}
         <div className="flex items-center justify-between pb-4">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-pace-smoke">Time Capsule</p>
@@ -42,10 +76,12 @@ export default function CapsuleLockModal({ onClose, activePace }) {
           </button>
         </div>
 
-        {/* Lock Animation Hero */}
+        {/* Lock Animation Hero:
+            Animates the lock button infinitely using spring parameters */}
         <div className="my-5 flex flex-col items-center justify-center rounded-[1.6rem] border border-white/10 bg-white/[0.03] py-8 text-center">
           <motion.div
             className="grid h-20 w-20 place-items-center rounded-full bg-pace-pearl text-pace-black shadow-glow"
+            // Infinite looping scale and glowing box shadow transitions
             animate={{ 
               scale: [1, 1.06, 1], 
               boxShadow: [
@@ -64,7 +100,8 @@ export default function CapsuleLockModal({ onClose, activePace }) {
           </p>
         </div>
 
-        {/* Informational Alerts */}
+        {/* Permanent Warning Warning Block:
+            Styled warning tag (amber-500/10 background) matching strict design requirements */}
         <div className="rounded-[1.2rem] border border-amber-500/10 bg-amber-500/[0.04] p-3 text-[11px] leading-5 text-amber-200/80 flex items-start gap-2.5">
           <AlertCircle size={15} className="mt-0.5 shrink-0 text-amber-400" />
           <span>
@@ -72,7 +109,7 @@ export default function CapsuleLockModal({ onClose, activePace }) {
           </span>
         </div>
 
-        {/* Previews & Guide */}
+        {/* Guide Cards presets list */}
         <div className="mt-5">
           <p className="text-xs uppercase tracking-wider text-pace-smoke mb-3 font-semibold">How to Time-Lock Memories</p>
           <div className="grid gap-3">
@@ -91,7 +128,7 @@ export default function CapsuleLockModal({ onClose, activePace }) {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Dismiss trigger */}
         <button
           onClick={onClose}
           className="mt-6 flex h-13 w-full items-center justify-center rounded-full bg-pace-pearl text-sm font-semibold text-pace-black active:scale-[0.98]"

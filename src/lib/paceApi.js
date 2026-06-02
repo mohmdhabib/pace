@@ -1,7 +1,38 @@
+/**
+ * ============================================================================
+ * FILE NAME: paceApi.js
+ * TYPE: Core Application API Layer / Database Services
+ * PURPOSE: Serves as the primary transaction layer managing all operations on Paces
+ *          (spaces) and Memories (posts). It coordinates data queries, writes, media file uploads
+ *          to cloud storage buckets, and registers active WebSocket listeners for instant real-time
+ *          feed updates.
+ * 
+ * WHAT HAPPENS IN THIS FILE:
+ * 1. Exports visual mood configuration gradients (`themeByMood`).
+ * 2. Provides standard datetime formatter helpers (`formatDate`, `formatTime`, and a reactive `relativeTime`
+ *    relative offset calculator).
+ * 3. Builds essential normalizing adapters (`normalizePace` and `normalizeMemory`) that ingest complex,
+ *    relational PostgreSQL tables with deep nested relationships (membership joins, profiles, covers)
+ *    and flattens them into clean JSON objects ready for React states.
+ * 4. Exposes core transactional APIs:
+ *    - `ensureProfile()`: Syncs auth profiles down into our user display table.
+ *    - `fetchPaces()` & `fetchMemories()`: Loads dashboard contents.
+ *    - `createPace()`: Launches transactional insertions (tries robust SECURITY DEFINER RPC functions first to bypass RLS,
+ *      falling back to direct client inserts).
+ *    - `createMemory()`: Registers new posts (supports photos, note texts, voice notes, video streams).
+ *    - `uploadMemoryFile()`: Uploads raw media files to Supabase S3-equivalent cloud storage buckets, returning static public URLs.
+ *    - `subscribeToMemories()`: Opens active real-time WebSockets to push new memory posts instantly to other connected users!
+ *    - `updatePace()`, `archivePace()`, and `unarchivePace()`: Updates configurations and soft-archiving toggles.
+ * 
+ * KEY IMPORTS & DEPENDENCIES:
+ * - `{ supabase }` from "./supabase": The active client executing relational database queries.
+ * ============================================================================
+ */
+
 import { supabase } from "./supabase";
 
-// Theme values used for pace cards and covers.
-// These are just stylistic defaults; the actual data stored in Supabase can override them.
+// --- VISUAL PALETTES ---
+// Maps visual mood key names to premium, curated Tailwind CSS CSS gradient styles
 export const themeByMood = {
   chaotic: "from-[#8f6b67]/25 via-[#181716]/30 to-[#d7d5cf]/15",
   peaceful: "from-[#c9beb1]/20 via-[#23211d]/30 to-[#7d8577]/20",
@@ -12,14 +43,29 @@ export const themeByMood = {
   "core-memory": "from-[#d2c5b1]/26 via-[#11100f]/25 to-[#8f6b67]/18"
 };
 
+// --- DATETIME FORMATTING HELPERS ---
+
+/**
+ * formatDate
+ * Converts dates into aesthetic representations: e.g. "April 18"
+ */
 function formatDate(value) {
   return new Intl.DateTimeFormat("en", { month: "long", day: "numeric" }).format(new Date(value));
 }
 
+/**
+ * formatTime
+ * Converts dates into 12-hour clock layouts: e.g. "11:42 PM"
+ */
 function formatTime(value) {
   return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
 
+/**
+ * relativeTime
+ * Calculates dynamic time differences between system now and action timestamp.
+ * Outputs strings: e.g., "12 min ago", "3 hr ago", "Yesterday", or "4 days ago".
+ */
 function relativeTime(value) {
   const diff = Date.now() - new Date(value).getTime();
   const minutes = Math.max(1, Math.round(diff / 60000));
@@ -30,15 +76,22 @@ function relativeTime(value) {
   return days === 1 ? "Yesterday" : `${days} days ago`;
 }
 
-// Convert the row returned from Supabase into the shape the app expects.
-// This function also handles relationships joined from paces.
+// --- NORMALIZING ADAPTERS (DATA CLEANERS) ---
+
+/**
+ * normalizePace
+ * Flattens relational, nested database response structures into clean Pace models.
+ * Also extracts up to 3 actual photo memory media URLs to form a card preview collage
+ * @param {Object} row - The database row returned from PostgreSQL paces.
+ */
 export function normalizePace(row) {
+  // Map members profile array or fallback to single user
   const members = row.pace_members && row.pace_members.length > 0
     ? row.pace_members.map((member) => member.profiles?.display_name || "Friend")
     : ["Me"];
   const latest = row.memories?.[0];
   
-  // Extract up to 3 actual photo memory media URLs to form a card preview collage
+  // Scrapes the space's memories to find the latest 3 photo uploads for the cards collage preview
   const photoMemories = row.memories
     ? row.memories
         .filter((m) => m.type === "photo" && m.media_url)
@@ -62,7 +115,10 @@ export function normalizePace(row) {
   };
 }
 
-// Convert a memory row from Supabase into the shape the app expects.
+/**
+ * normalizeMemory
+ * Flattens nested database response rows into simplified Memory schemas.
+ */
 export function normalizeMemory(row) {
   return {
     id: row.id,
@@ -72,21 +128,31 @@ export function normalizeMemory(row) {
     date: formatDate(row.memory_at),
     caption: row.caption || row.ai_caption || "",
     image: row.media_url,
+    mediaUrl: row.media_url,
     mood: row.ai_mood || row.mood || "soft",
     lockedUntil: row.locked_until,
     location: row.location_name
   };
 }
 
+// --- CORE API SERVICES ---
+
+/**
+ * ensureProfile
+ * Upserts a display name and avatar inside the `profiles` table to guarantee
+ * relational queries succeed. Tries secure SQL procedures before direct inserts.
+ */
 export async function ensureProfile(user) {
   if (!supabase || !user?.id) return null;
 
+  // Resolves friendly username handles from user authentication metadata
   const displayName =
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
     user.email?.split("@")[0] ||
     "Pace friend";
 
+  // 1. Tries Remote Procedure Call (RPC) SQL procedure
   const { data: rpcData, error: rpcError } = await supabase.rpc("ensure_user_profile", {
     display_name_arg: displayName,
     avatar_url_arg: user.user_metadata?.avatar_url || null
@@ -94,6 +160,7 @@ export async function ensureProfile(user) {
 
   if (!rpcError) return rpcData;
 
+  // 2. Client Fallback: Executes direct UPSERT statement (insert if missing, update if conflict)
   const { data, error } = await supabase
     .from("profiles")
     .upsert(
@@ -111,8 +178,11 @@ export async function ensureProfile(user) {
   return data;
 }
 
-// Fetch paces from Supabase.
-// If RLS is enabled, this query will only return paces the current user is allowed to read.
+/**
+ * fetchPaces
+ * Retrieves all Pace spaces associated with the logged-in user session,
+ * performing joins on pace_members profiles and recent memories.
+ */
 export async function fetchPaces() {
   if (!supabase) return [];
   const { data, error } = await supabase
@@ -125,11 +195,13 @@ export async function fetchPaces() {
     .limit(24);
 
   if (error) throw error;
-  return data.map(normalizePace);
+  return data.map(normalizePace); // normalizes each raw Postgres row
 }
 
-// Fetch memories for a specific pace.
-// RLS must allow the current user to read memories for this pace.
+/**
+ * fetchMemories
+ * Retrieves all memory posts for a specific space ID, ordered by date.
+ */
 export async function fetchMemories(paceId) {
   if (!supabase || !paceId) return [];
   const { data, error } = await supabase
@@ -142,9 +214,11 @@ export async function fetchMemories(paceId) {
   return data.map(normalizeMemory);
 }
 
-// Create a new pace in Supabase.
-// This function now explicitly uses the current authenticated user id as owner_id
-// so that the insert can satisfy RLS policies like `owner_id = auth.uid()`.
+/**
+ * createPace
+ * Inserts a new Pace space. Expressly handles RLS (Row-Level Security)
+ * constraints by assigning current session auth IDs as owners.
+ */
 export async function createPace({ title, description, mood, coverUrl }) {
   if (!supabase) return null;
 
@@ -161,7 +235,9 @@ export async function createPace({ title, description, mood, coverUrl }) {
 
   const theme = themeByMood[mood] || themeByMood.nostalgic;
 
-  // Attempt using the robust SQL RPC function first (bypasses RLS constraints using security definer)
+  // 1. Attempts insertion via a database Remote Procedure Call (RPC).
+  // Inside the Supabase Postgres schema, the 'create_pace' function handles
+  // both creating the pace and adding the owner into `pace_members` inside a single TRANSACTION block.
   console.log("Attempting Pace creation via Supabase RPC...");
   const { data, error } = await supabase.rpc("create_pace", {
     title_arg: title,
@@ -174,8 +250,10 @@ export async function createPace({ title, description, mood, coverUrl }) {
   if (error) {
     console.warn("createPace RPC failed or not found, attempting fallback direct insert...", error);
     
+    // Ensure profile row exists prior to insert to satisfy PostgreSQL foreign keys
     await ensureProfile(user);
     
+    // 2. Client Fallback: direct INSERT write
     const { data: fallbackData, error: fallbackError } = await supabase
       .from("paces")
       .insert({
@@ -202,8 +280,10 @@ export async function createPace({ title, description, mood, coverUrl }) {
   return normalizePace({ ...data, pace_members: [], memories: [] });
 }
 
-// Create a new memory. This also relies on RLS for `author_id` and `pace_id`.
-// If your `memories` insert policy requires author_id = auth.uid(), pass the signed-in user.
+/**
+ * createMemory
+ * Saves a new Memory post row inside the `memories` table database.
+ */
 export async function createMemory({ paceId, authorId, type, caption, mood, mediaUrl, locationName, memoryAt, lockedUntil }) {
   if (!supabase) return null;
   const { data, error } = await supabase
@@ -226,8 +306,10 @@ export async function createMemory({ paceId, authorId, type, caption, mood, medi
   return normalizeMemory(data);
 }
 
-// Create a new invite. RLS for pace_invites usually requires invited_by = auth.uid()
-// and that the current user is a member or owner of the pace.
+/**
+ * createInvite
+ * Generates an invitation token inside `pace_invites` table, returning a landing page URL.
+ */
 export async function createInvite({ paceId, invitedBy, email }) {
   if (!supabase) return null;
   const { data, error } = await supabase
@@ -248,47 +330,67 @@ export async function createInvite({ paceId, invitedBy, email }) {
   };
 }
 
-// Upload a file to Supabase Storage. This is not directly controlled by the paces RLS policy,
-// but storage bucket permissions still apply.
+/**
+ * uploadMemoryFile
+ * Uploads a physical binary file to the `pace-media` Supabase Storage bucket.
+ * Generates and returns a static public URL for card renders.
+ * @param {Object} payload
+ * @param {String} payload.paceId - Sub-folder mapping space files.
+ * @param {File} payload.file - Raw browser file upload object.
+ */
 export async function uploadMemoryFile({ paceId, file }) {
   if (!supabase || !file) return null;
   const extension = file.name.split(".").pop() || "bin";
-  const filePath = `${paceId}/${crypto.randomUUID()}.${extension}`;
+  const filePath = `${paceId}/${crypto.randomUUID()}.${extension}`; // Prevents file collision using UUID names
+  
+  // Uploads raw file binary
   const { error } = await supabase.storage.from("pace-media").upload(filePath, file, {
     cacheControl: "3600",
     upsert: false
   });
 
   if (error) throw error;
+  
+  // Returns clean static public URL path
   const { data } = supabase.storage.from("pace-media").getPublicUrl(filePath);
   return data.publicUrl;
 }
 
-// Subscribe to real-time memory inserts for a specific pace.
-// This is a client-side realtime listener, not a direct DB insert/select call.
+/**
+ * subscribeToMemories
+ * Real-time listener: Establishes a raw WebSocket connection checking for database modifications.
+ * Receives callbacks whenever a new row is INSERTED into target space memories.
+ * @param {String} paceId - Filter target space ID.
+ * @param {Function} onMemory - Callback receiving normalized memory rows.
+ */
 export function subscribeToMemories(paceId, onMemory) {
   if (!supabase || !paceId) return null;
 
+  // Hooks into the WebSocket connection pool channel
   const channel = supabase
     .channel(`pace:${paceId}:memories`)
     .on(
       "postgres_changes",
       {
-        event: "INSERT",
+        event: "INSERT", // Trigger specifically for new inserts
         schema: "public",
         table: "memories",
-        filter: `pace_id=eq.${paceId}`
+        filter: `pace_id=eq.${paceId}` // Restricted specifically to this Pace ID
       },
       (payload) => onMemory(normalizeMemory(payload.new))
     )
     .subscribe();
 
+  // Returns standard React subscription cleanup function to close active channel
   return () => {
     supabase.removeChannel(channel);
   };
 }
 
-// Update an existing Pace's metadata and settings.
+/**
+ * updatePace
+ * Updates space fields: e.g. titles, mood, custom covers.
+ */
 export async function updatePace(paceId, updates) {
   if (!supabase || !paceId) return null;
   const { data, error } = await supabase
@@ -304,7 +406,10 @@ export async function updatePace(paceId, updates) {
   return normalizePace(data);
 }
 
-// Soft archive an existing Pace by setting archived_at.
+/**
+ * archivePace
+ * Soft-archives a Pace by logging the archived_at timestamp.
+ */
 export async function archivePace(paceId) {
   if (!supabase || !paceId) return null;
   const { data, error } = await supabase
@@ -320,7 +425,10 @@ export async function archivePace(paceId) {
   return normalizePace(data);
 }
 
-// Unarchive a previously archived Pace by setting archived_at to null.
+/**
+ * unarchivePace
+ * Un-archives a Pace by resetting archived_at to null.
+ */
 export async function unarchivePace(paceId) {
   if (!supabase || !paceId) return null;
   const { data, error } = await supabase

@@ -1,12 +1,45 @@
+/**
+ * ============================================================================
+ * FILE NAME: constants.js
+ * TYPE: Shared Configuration / Static Data Constants
+ * PURPOSE: Centralizes all static fallback mock datasets, aesthetic pre-curated
+ *          cover images, and global configuration values (mood lists) utilized by
+ *          the frontend before database synchronization is active.
+ * 
+ * WHAT HAPPENS IN THIS FILE:
+ * 1. Exports four key variables: `covers`, `paces`, `memories`, and `moods`.
+ * 2. `covers` holds high-quality Unsplash image URLs optimal for background displays.
+ * 3. `paces` provides three pre-designed mockup Spaces (e.g. Chennai Nights, Final Semester)
+ *    so a final-year CS student or beginner running the app locally can instantly test the
+ *    visual layout without connecting to Supabase storage tables first.
+ * 4. `memories` holds mock scrapbook items (Photo notes, Voice recordings, Text quotes)
+ *    to pre-hydrate the horizontal dashboard timeline.
+ * 5. `moods` acts as the single source of truth for the list of visual mood badge themes.
+ * 
+ * KEY IMPORTS & DEPENDENCIES:
+ * - Pure Javascript data declaration module. No external dependencies.
+ * ============================================================================
+ */
+
+/**
+ * covers
+ * An array of high-fidelity, aesthetic Unsplash photographic image URLs.
+ * Used as preset cover selections during Pace space creations or edits.
+ */
 export const covers = [
-  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=85",
-  "https://images.unsplash.com/photo-1495567720989-cebdbdd97913?auto=format&fit=crop&w=1200&q=85"
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=75",
+  "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=75",
+  "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=75",
+  "https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=800&q=75",
+  "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=800&q=75",
+  "https://images.unsplash.com/photo-1495567720989-cebdbdd97913?auto=format&fit=crop&w=800&q=75"
 ];
 
+/**
+ * paces
+ * Fallback spaces mimicking real DB records for instant prototype loading.
+ * Each Pace features pre-configured background gradients (`color`) and cover art.
+ */
 export const paces = [
   {
     id: "chennai",
@@ -43,6 +76,11 @@ export const paces = [
   }
 ];
 
+/**
+ * memories
+ * Pre-loaded, nostalgic memory posts displaying different message types
+ * (Photo, Voice, Text note) in the local offline mockup dashboard feed.
+ */
 export const memories = [
   {
     type: "photo",
@@ -81,4 +119,9 @@ export const memories = [
   }
 ];
 
+/**
+ * moods
+ * Single source of truth defining all valid creative mood visual themes
+ * supported in the Pace application.
+ */
 export const moods = ["chaotic", "peaceful", "late-night", "nostalgic", "soft", "adventure", "core-memory"];
