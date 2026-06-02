@@ -20,7 +20,7 @@ export default function CapsuleLockModal({ onClose, activePace }) {
       onClick={onClose}
     >
       <motion.div
-        className="w-full max-w-md overflow-hidden rounded-[2.2rem] border border-white/10 bg-[#0d0d0c]/90 p-6 shadow-glow backdrop-blur-2xl text-left"
+        className="w-full max-w-[485px] overflow-hidden rounded-[2.2rem] border border-white/10 bg-[#0d0d0c]/90 p-6 shadow-glow backdrop-blur-2xl text-left"
         initial={{ scale: 0.94, y: 30 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.94, y: 30 }}
