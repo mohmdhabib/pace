@@ -79,6 +79,7 @@ import CreatePace from "./features/spaces/CreatePace";
 import EditPace from "./features/spaces/EditPace";
 import InviteFriends from "./features/spaces/InviteFriends";
 import AddMemory from "./features/memories/AddMemory";
+import StoryMode from "./features/memories/StoryMode";
 
 // Auxiliary overlay components
 import JoinPaceModal from "./components/JoinPaceModal";
@@ -696,6 +697,19 @@ function App() {
               setInvite(null);
             }}
             onCreate={handleCreateInvite}
+          />
+        )}
+        
+        {/* Story Mode Cinematic Slideshow Player */}
+        {modal === "story" && (
+          <StoryMode
+            memories={appMemories.filter((m) => {
+              // Exclude time-locked capsule memories from the slideshow
+              if (m.lockedUntil && new Date(m.lockedUntil) > new Date()) return false;
+              return true;
+            })}
+            pace={activePace}
+            onClose={() => setModal(null)}
           />
         )}
         

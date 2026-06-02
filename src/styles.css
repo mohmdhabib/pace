@@ -70,3 +70,64 @@ article:nth-of-type(even) .memory-card {
     place-items: center;
   }
 }
+
+/* ============================================================================
+   STORY MODE — Cinematic Slideshow Animations
+   ============================================================================ */
+
+/* Ken Burns zoom/pan presets — each provides a slow, cinematic camera movement */
+@keyframes kenburns-zoom-in {
+  from { transform: scale(1) translate(0, 0); }
+  to   { transform: scale(1.18) translate(-2%, -1.5%); }
+}
+
+@keyframes kenburns-zoom-out {
+  from { transform: scale(1.22) translate(-3%, -2%); }
+  to   { transform: scale(1) translate(0, 0); }
+}
+
+@keyframes kenburns-pan-right {
+  from { transform: scale(1.12) translate(-4%, 0); }
+  to   { transform: scale(1.12) translate(2%, 0); }
+}
+
+@keyframes kenburns-pan-up {
+  from { transform: scale(1.12) translate(0, 3%); }
+  to   { transform: scale(1.12) translate(0, -2%); }
+}
+
+/* Ambient floating particles drifting upward */
+@keyframes particle-drift {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  10%  { opacity: 0.5; }
+  85%  { opacity: 0.35; }
+  100% { transform: translateY(-100vh) scale(0.3); opacity: 0; }
+}
+
+/* Typewriter cursor blink */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* Story progress bar fill animation */
+@keyframes story-fill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+/* Text slide subtle glow pulse */
+@keyframes text-glow {
+  0%, 100% { text-shadow: 0 0 40px rgba(245, 241, 234, 0.08); }
+  50%      { text-shadow: 0 0 60px rgba(245, 241, 234, 0.16); }
+}
+
+/* Slide entrance fade */
+.story-slide-enter {
+  animation: story-fade-in 0.8s ease-out forwards;
+}
+
+@keyframes story-fade-in {
+  from { opacity: 0; transform: scale(1.02); }
+  to   { opacity: 1; transform: scale(1); }
+}

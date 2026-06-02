@@ -35,6 +35,7 @@ import {
   ChevronLeft,
   ImagePlus,
   Lock,
+  Play,
   Plus,
   Settings,
   Sparkles,
@@ -280,7 +281,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
  * Timeline Sub-Component
  * Renders the vertical feed scrolls for a specific selected space.
  */
-function Timeline({ pace, memories, setView, setModal }) {
+function Timeline({ pace, memories, setView, setModal, hasStoryContent }) {
   return (
     <motion.div
       className="relative flex flex-1 flex-col overflow-hidden"
@@ -303,6 +304,18 @@ function Timeline({ pace, memories, setView, setModal }) {
         >
           <ChevronLeft size={20} />
         </button>
+        
+        {/* Play Story cinematic slideshow trigger */}
+        {hasStoryContent && (
+          <button
+            className="absolute left-[4.5rem] top-8 flex h-11 items-center gap-1.5 rounded-full border border-white/10 bg-black/30 px-4 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
+            onClick={() => setModal("story")}
+            aria-label="Play story"
+          >
+            <Play size={14} className="fill-current" />
+            <span className="text-xs font-semibold tracking-wide">Story</span>
+          </button>
+        )}
         
         {/* Settings button to manage space Row details */}
         <button
@@ -401,6 +414,7 @@ export default function Shell({
             setView={setView}
             setModal={setModal}
             key="timeline"
+            hasStoryContent={memories && memories.length > 0}
           />
         )}
         {view === "profile" && (
