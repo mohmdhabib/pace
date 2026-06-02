@@ -37,6 +37,17 @@ export function normalizePace(row) {
     ? row.pace_members.map((member) => member.profiles?.display_name || "Friend")
     : ["Me"];
   const latest = row.memories?.[0];
+  
+  // Extract up to 3 actual photo memory media URLs to form a card preview collage
+  const photoMemories = row.memories
+    ? row.memories
+        .filter((m) => m.type === "photo" && m.media_url)
+        .map((m) => m.media_url)
+        .slice(0, 3)
+    : [];
+
+  const collage = [row.cover_url, ...photoMemories].filter(Boolean);
+
   return {
     id: row.id,
     title: row.title,
@@ -46,7 +57,8 @@ export function normalizePace(row) {
     snippet: latest?.caption || row.description || "A private room for the moments that still glow.",
     color: row.color_theme || themeByMood[row.mood] || themeByMood.nostalgic,
     cover: row.cover_url,
-    collage: [row.cover_url].filter(Boolean)
+    collage: collage.length > 0 ? collage : [row.cover_url].filter(Boolean),
+    archivedAt: row.archived_at
   };
 }
 
@@ -106,12 +118,11 @@ export async function fetchPaces() {
   const { data, error } = await supabase
     .from("paces")
     .select(
-      "*, pace_members(role, profiles(display_name, avatar_url)), memories(caption, created_at)"
+      "*, pace_members(role, profiles(display_name, avatar_url)), memories(caption, type, media_url, created_at)"
     )
-    .is("archived_at", null)
     .order("updated_at", { ascending: false })
     .order("created_at", { foreignTable: "memories", ascending: false })
-    .limit(12);
+    .limit(24);
 
   if (error) throw error;
   return data.map(normalizePace);
@@ -285,7 +296,39 @@ export async function updatePace(paceId, updates) {
     .update(updates)
     .eq("id", paceId)
     .select(
-      "*, pace_members(role, profiles(display_name, avatar_url)), memories(caption, created_at)"
+      "*, pace_members(role, profiles(display_name, avatar_url)), memories(caption, type, media_url, created_at)"
+    )
+    .single();
+
+  if (error) throw error;
+  return normalizePace(data);
+}
+
+// Soft archive an existing Pace by setting archived_at.
+export async function archivePace(paceId) {
+  if (!supabase || !paceId) return null;
+  const { data, error } = await supabase
+    .from("paces")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", paceId)
+    .select(
+      "*, pace_members(role, profiles(display_name, avatar_url)), memories(caption, type, media_url, created_at)"
+    )
+    .single();
+
+  if (error) throw error;
+  return normalizePace(data);
+}
+
+// Unarchive a previously archived Pace by setting archived_at to null.
+export async function unarchivePace(paceId) {
+  if (!supabase || !paceId) return null;
+  const { data, error } = await supabase
+    .from("paces")
+    .update({ archived_at: null })
+    .eq("id", paceId)
+    .select(
+      "*, pace_members(role, profiles(display_name, avatar_url)), memories(caption, type, media_url, created_at)"
     )
     .single();
 

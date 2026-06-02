@@ -27,6 +27,7 @@ import {
   X
 } from "lucide-react";
 import {
+  archivePace,
   createInvite,
   createMemory,
   createPace,
@@ -35,6 +36,7 @@ import {
   fetchPaces,
   subscribeToMemories,
   themeByMood,
+  unarchivePace,
   updatePace,
   uploadMemoryFile
 } from "./lib/paceApi";
@@ -160,6 +162,8 @@ function App() {
     isSupabaseConfigured ? "Connect to sync private Paces" : "Prototype mode"
   );
 
+  const [loadingSession, setLoadingSession] = useState(isSupabaseConfigured);
+
   function resetToSignedOut() {
     setSession(null);
     setStarted(false);
@@ -183,6 +187,7 @@ function App() {
 
   useEffect(() => {
     let isMounted = true;
+    let initialLoadDone = false;
 
     async function loadPacesForSession(currentSession) {
       if (!currentSession) {
@@ -190,39 +195,79 @@ function App() {
         return;
       }
 
-      await ensureProfile(currentSession.user);
-      const livePaces = await fetchPaces();
-      if (!isMounted) return;
+      try {
+        await ensureProfile(currentSession.user);
+        const livePaces = await fetchPaces();
+        if (!isMounted) return;
 
-      if (livePaces.length) {
-        const hydrated = livePaces.map((pace, index) => ({
-          ...pace,
-          cover: pace.cover || covers[index % covers.length]
-        }));
-        setAppPaces(hydrated);
-        setActivePace(hydrated[0]);
-        setSyncStatus("Synced privately");
-        setStarted(true); // Automatically bypass onboarding if a live session exists
-      } else {
-        setAppPaces([]);
-        setActivePace(null);
-        setSyncStatus("Signed in. Create your first Pace.");
-        setStarted(true); // Automatically bypass onboarding if a live session exists
+        if (livePaces.length) {
+          const hydrated = livePaces.map((pace, index) => ({
+            ...pace,
+            cover: pace.cover || covers[index % covers.length]
+          }));
+          setAppPaces(hydrated);
+          setActivePace(hydrated[0]);
+          setSyncStatus("Synced privately");
+          setStarted(true);
+        } else {
+          setAppPaces([]);
+          setActivePace(null);
+          setSyncStatus("Signed in. Create your first Pace.");
+          setStarted(true);
+        }
+      } catch (err) {
+        console.error("Error loading paces for session:", err);
+        if (isMounted) setSyncStatus(formatSyncError(err));
       }
     }
 
-    const unsubscribe = onAuthChange(async (nextSession) => {
-      if (!isMounted) return;
-      if (!nextSession) {
-        resetToSignedOut();
+    async function initSession() {
+      if (!isSupabaseConfigured) {
+        setLoadingSession(false);
         return;
       }
-      setSession(nextSession);
+
       try {
-        await loadPacesForSession(nextSession);
-      } catch (error) {
-        setSyncStatus(formatSyncError(error));
+        const initialSession = await getSession();
+        if (isMounted && initialSession) {
+          console.log("Supabase initial session detected on mount:", initialSession.user?.email);
+          setSession(initialSession);
+          await loadPacesForSession(initialSession);
+        }
+      } catch (err) {
+        console.error("Error during initial session check:", err);
+      } finally {
+        if (isMounted) {
+          setLoadingSession(false);
+          initialLoadDone = true;
+        }
       }
+    }
+
+    initSession();
+
+    const unsubscribe = onAuthChange(async (nextSession) => {
+      if (!isMounted) return;
+      
+      // Prevent running auth change handlers during initial session fetch
+      if (!initialLoadDone) return;
+
+      setSession((currentSession) => {
+        // If session didn't actually change, do nothing to prevent query loops
+        if (currentSession?.user?.id === nextSession?.user?.id) {
+          return currentSession;
+        }
+
+        if (!nextSession) {
+          console.log("Supabase session ended, resetting state...");
+          resetToSignedOut();
+          return null;
+        }
+
+        console.log("Supabase session changed, reloading data...", nextSession.user?.email);
+        loadPacesForSession(nextSession);
+        return nextSession;
+      });
     });
 
     return () => {
@@ -473,6 +518,62 @@ function App() {
     }
   }
 
+  async function handleArchivePace(paceId) {
+    console.log("handleArchivePace called for ID:", paceId);
+    
+    // 1. Offline / Prototype mode archival
+    if (!session && !isSupabaseConfigured) {
+      setAppPaces((current) =>
+        current.map((p) => (p.id === paceId ? { ...p, archivedAt: new Date().toISOString() } : p))
+      );
+      if (activePace?.id === paceId) {
+        setActivePace(null);
+      }
+      return;
+    }
+
+    // 2. Supabase mode archival
+    try {
+      const archivedRow = await archivePace(paceId);
+      setAppPaces((current) =>
+        current.map((p) => (p.id === paceId ? archivedRow : p))
+      );
+      if (activePace?.id === paceId) {
+        setActivePace(null);
+      }
+      setSyncStatus("Era archived");
+    } catch (error) {
+      console.error("archivePace error:", error);
+      setSyncStatus(readableSupabaseError(error));
+      throw error;
+    }
+  }
+
+  async function handleUnarchivePace(paceId) {
+    console.log("handleUnarchivePace called for ID:", paceId);
+
+    // 1. Offline / Prototype mode unarchival
+    if (!session && !isSupabaseConfigured) {
+      setAppPaces((current) =>
+        current.map((p) => (p.id === paceId ? { ...p, archivedAt: null } : p))
+      );
+      return;
+    }
+
+    // 2. Supabase mode unarchival
+    try {
+      const unarchivedRow = await unarchivePace(paceId);
+      setAppPaces((current) =>
+        current.map((p) => (p.id === paceId ? unarchivedRow : p))
+      );
+      setSyncStatus("Era restored");
+    } catch (error) {
+      console.error("unarchivePace error:", error);
+      setSyncStatus(readableSupabaseError(error));
+      throw error;
+    }
+  }
+
   async function handleCreateMemory(form) {
     let mediaUrl = form.mediaUrl;
     const fallbackMemory = {
@@ -533,7 +634,22 @@ function App() {
       <Ambient />
       <FilmGrain />
       <AnimatePresence mode="wait">
-        {!started ? (
+        {loadingSession ? (
+          <motion.div
+            key="loading-session"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="relative z-10 flex min-h-screen items-center justify-center"
+          >
+            <div className="flex flex-col items-center">
+              <Moon size={32} className="text-pace-bone animate-pulse" />
+              <p className="mt-4 text-xs tracking-[0.25em] text-pace-smoke uppercase select-none">
+                unlocking pace
+              </p>
+            </div>
+          </motion.div>
+        ) : !started ? (
           <Onboarding
             key="onboarding"
             onBegin={() => setStarted(true)}
@@ -580,6 +696,16 @@ function App() {
             onUpdate={async (form) => {
               await handleUpdatePace(form);
               setModal(null);
+            }}
+            onArchive={async (paceId) => {
+              await handleArchivePace(paceId);
+              setModal(null);
+              setView("home");
+            }}
+            onUnarchive={async (paceId) => {
+              await handleUnarchivePace(paceId);
+              setModal(null);
+              setView("home");
             }}
           />
         )}
@@ -1192,9 +1318,14 @@ function PhoneChrome({ children }) {
 }
 
 function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) {
+  const [showArchived, setShowArchived] = useState(false);
+
+  const activePaces = paces.filter((p) => !p.archivedAt);
+  const archivedPaces = paces.filter((p) => p.archivedAt);
+
   return (
     <motion.div
-      className="relative flex flex-1 flex-col overflow-hidden"
+      className="relative flex flex-1 flex-col overflow-y-auto no-scrollbar"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -1209,7 +1340,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
             )}
           </div>
           <button
-            className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-pace-bone backdrop-blur-xl"
+            className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-pace-bone backdrop-blur-xl hover:bg-white/[0.12] transition duration-200"
             onClick={() => setView("profile")}
             aria-label="Open profile"
           >
@@ -1220,9 +1351,11 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
           Your active eras, held quietly with the people who were there.
         </p>
       </header>
-      <div className="no-scrollbar flex flex-1 snap-x gap-4 overflow-x-auto px-5 pb-24 pt-2">
-        {paces.length > 0 ? (
-          paces.map((pace) => (
+
+      {/* Active Paces horizontal list */}
+      <div className="no-scrollbar flex snap-x gap-4 overflow-x-auto px-5 pb-8 pt-2">
+        {activePaces.length > 0 ? (
+          activePaces.map((pace) => (
             <PaceCard
               pace={pace}
               key={pace.id}
@@ -1233,7 +1366,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
             />
           ))
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center text-center p-8 border border-white/5 bg-white/[0.02] rounded-[2rem] min-h-[30rem] w-full">
+          <div className="flex flex-1 flex-col items-center justify-center text-center p-8 border border-white/5 bg-white/[0.02] rounded-[2rem] min-h-[30rem] w-full snaps-center">
             <div className="grid h-14 w-14 place-items-center rounded-full bg-pace-pearl/10 border border-pace-pearl/20 text-pace-pearl mb-4">
               <Sparkles size={20} className="animate-pulse" />
             </div>
@@ -1244,30 +1377,102 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
           </div>
         )}
       </div>
-      <button
-        className="absolute bottom-5 left-1/2 flex h-14 -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-pace-pearl px-5 text-sm font-semibold text-pace-black shadow-glow transition active:scale-[0.98]"
-        onClick={() => setModal("create")}
-      >
-        <Plus size={18} />
-        Create Pace
-      </button>
+
+      {/* Soft Archival Hub Drawer */}
+      {archivedPaces.length > 0 && (
+        <div className="px-5 pb-28 pt-4 flex flex-col border-t border-white/[0.04] mt-4">
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className="mx-auto flex items-center gap-2 px-4 py-2 rounded-full border border-white/5 bg-white/[0.03] hover:bg-white/[0.08] text-xs font-semibold text-pace-smoke hover:text-pace-pearl transition duration-200 active:scale-95"
+          >
+            <Archive size={12} />
+            <span>{showArchived ? "Hide Archived Eras" : `Show Archived Eras (${archivedPaces.length})`}</span>
+          </button>
+          
+          <AnimatePresence>
+            {showArchived && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{ opacity: 1, height: "auto", marginTop: 16 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                className="no-scrollbar flex snap-x gap-4 overflow-x-auto py-2"
+              >
+                {archivedPaces.map((pace) => (
+                  <PaceCard
+                    pace={pace}
+                    key={pace.id}
+                    isArchived={true}
+                    onOpen={() => {
+                      setActivePace(pace);
+                      setView("timeline");
+                    }}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Floating Create Pace Button */}
+      <div className="fixed bottom-5 left-1/2 z-30 -translate-x-1/2">
+        <button
+          className="flex h-14 items-center gap-2 rounded-full border border-white/15 bg-pace-pearl px-5 text-sm font-semibold text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02]"
+          onClick={() => setModal("create")}
+        >
+          <Plus size={18} />
+          Create Pace
+        </button>
+      </div>
     </motion.div>
   );
 }
 
-function PaceCard({ pace, onOpen }) {
+function PaceCard({ pace, onOpen, isArchived = false }) {
+  const memoriesPhotos = pace.collage ? pace.collage.slice(1, 4) : [];
+
   return (
     <motion.button
-      className="relative h-[34rem] min-w-[84%] snap-center overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.055] text-left shadow-soft"
+      className={`relative h-[34rem] min-w-[84%] snap-center overflow-hidden rounded-[2rem] border text-left shadow-soft transition-all duration-300 ${
+        isArchived
+          ? "border-pace-wine/20 bg-[#120a09]/40 opacity-75 saturate-[0.3] hover:saturate-[0.8] hover:opacity-95"
+          : "border-white/10 bg-white/[0.055] hover:border-white/20"
+      }`}
       whileTap={{ scale: 0.985 }}
       onClick={onOpen}
     >
-      <img src={pace.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70" />
+      <img src={pace.cover} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
       <div className={`absolute inset-0 bg-gradient-to-b ${pace.color}`} />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/25 to-black/85" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-black/30 to-black/90" />
+
+      {/* Scrapbook Polaroid Collage Stack in Card Background */}
+      {memoriesPhotos.length > 0 && (
+        <div className="absolute inset-x-0 top-14 flex items-center justify-center h-44 select-none pointer-events-none">
+          {memoriesPhotos.map((imgUrl, i) => {
+            const rot = i === 0 ? "rotate-[-7deg]" : i === 1 ? "rotate-[6deg]" : "rotate-[-2deg]";
+            const scale = i === 0 ? "scale-90 -translate-x-6 z-10" : i === 1 ? "scale-95 translate-x-6 z-20" : "scale-[0.8] z-0 opacity-40 translate-y-2";
+            return (
+              <div
+                key={imgUrl}
+                className={`absolute w-28 h-28 rounded-lg border-2 border-white bg-white/10 p-1 shadow-soft transition-transform ${rot} ${scale}`}
+              >
+                <img src={imgUrl} alt="" className="h-full w-full object-cover rounded-md" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {isArchived && (
+        <div className="absolute left-4 top-4 rounded-full border border-pace-wine/30 bg-pace-wine/25 px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-pace-wine backdrop-blur-xl animate-pulse">
+          Archived Era
+        </div>
+      )}
+
       <div className="absolute right-4 top-4 rounded-full border border-white/12 bg-black/30 px-3 py-1 text-xs text-pace-bone backdrop-blur-xl">
         {pace.last}
       </div>
+
       <div className="absolute bottom-0 left-0 right-0 p-5">
         <div className="mb-4 flex -space-x-2">
           {pace.members.slice(0, 4).map((member, index) => (
@@ -1281,7 +1486,7 @@ function PaceCard({ pace, onOpen }) {
           ))}
         </div>
         <h2 className="text-4xl font-semibold leading-none">{pace.title}</h2>
-        <p className="mt-3 text-sm leading-6 text-pace-bone/82">{pace.snippet}</p>
+        <p className="mt-3 text-sm leading-6 text-pace-bone/82 line-clamp-2">{pace.snippet}</p>
         <div className="mt-5 flex items-center justify-between">
           <span className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-1 text-xs text-pace-bone backdrop-blur-xl">
             {pace.mood}
@@ -1608,7 +1813,7 @@ function CreatePace({ onClose, onCreate }) {
   );
 }
 
-function EditPace({ pace, onClose, onUpdate }) {
+function EditPace({ pace, onClose, onUpdate, onArchive, onUnarchive }) {
   const [title, setTitle] = useState(pace.title);
   const [description, setDescription] = useState(pace.snippet || pace.description || "");
   const [mood, setMood] = useState(pace.mood || "nostalgic");
@@ -1741,14 +1946,40 @@ function EditPace({ pace, onClose, onUpdate }) {
         ))}
       </div>
 
-      <button
-        className="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-pace-pearl text-sm font-bold text-pace-black shadow-glow transition hover:scale-[1.01] active:scale-[0.98]"
-        onClick={submit}
-        disabled={isSaving}
-      >
-        <Wand2 size={17} />
-        {isSaving ? "Saving..." : "Save era settings"}
-      </button>
+      {/* Action Buttons Row */}
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <button
+          className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-full bg-pace-pearl text-sm font-bold text-pace-black shadow-glow transition hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50"
+          onClick={submit}
+          disabled={isSaving}
+        >
+          <Wand2 size={16} />
+          {isSaving ? "Saving..." : "Save settings"}
+        </button>
+
+        <button
+          type="button"
+          className={`flex h-14 items-center justify-center gap-2 rounded-full border transition active:scale-95 disabled:opacity-50 ${
+            pace.archivedAt
+              ? "border-pace-moss/25 bg-pace-moss/10 text-xs font-bold text-pace-moss hover:bg-pace-moss/18"
+              : "border-pace-wine/25 bg-pace-wine/10 text-xs font-bold text-pace-wine hover:bg-pace-wine/18"
+          }`}
+          onClick={() => {
+            if (pace.archivedAt) {
+              if (confirm("Restore this era back to your active dashboard?")) {
+                onUnarchive(pace.id);
+              }
+            } else {
+              if (confirm("Are you sure you want to archive this era? You can restore it anytime.")) {
+                onArchive(pace.id);
+              }
+            }
+          }}
+          disabled={isSaving}
+        >
+          {pace.archivedAt ? "Restore" : "Archive"}
+        </button>
+      </div>
       {status && <p className="mt-4 text-center text-xs leading-5 text-pace-bone">{status}</p>}
     </Modal>
   );
