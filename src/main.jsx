@@ -68,9 +68,17 @@ import {
   signOut
 } from "./lib/supabase";
 import { fetchInviteDetails } from "./lib/inviteApi";
+import {
+  fetchConversations,
+  fetchMessages,
+  sendMessage as sendChatMessage,
+  subscribeToMessages,
+  addReaction as addMemoryReaction,
+  removeReaction as removeMemoryReaction
+} from "./lib/chatApi";
 
 // Modular Feature-Sliced Design (FSD) imports
-import { covers, paces, memories, moods } from "./shared/constants";
+import { covers, paces, memories, moods, mockConversations, mockMessages, mockReactions, mockRelationshipStats } from "./shared/constants";
 import { isLiveId, formatSyncError, readableSupabaseError } from "./shared/utils";
 import Onboarding from "./features/auth/Onboarding";
 import Shell from "./views/Shell";
@@ -123,6 +131,12 @@ function App() {
   const [modal, setModal] = useState(null); // Active overlay modal state ('create', 'edit-pace', etc.)
   const [invite, setInvite] = useState(null); // Created invite tokens parameter context
   
+  // --- CHAT & RELATIONSHIP STATES ---
+  const [conversations, setConversations] = useState(mockConversations);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [reactions, setReactions] = useState(mockReactions);
+  const [messages, setMessages] = useState(mockMessages);
+
   // Parses URL query string to search for active invite codes (e.g. ?invite=abc-123)
   const [pendingInvite, setPendingInvite] = useState(() => {
     if (typeof window !== "undefined") {
@@ -151,6 +165,10 @@ function App() {
     setAppPaces(paces);
     setAppMemories(memories);
     setActivePace(paces[0]);
+    setConversations(mockConversations);
+    setActiveConversation(null);
+    setReactions(mockReactions);
+    setMessages(mockMessages);
     setSyncStatus(isSupabaseConfigured ? "Signed out" : "Prototype mode");
   }
 
@@ -208,6 +226,16 @@ function App() {
           setActivePace(null);
           setSyncStatus("Signed in. Create your first Pace.");
           setStarted(true); // Auto-bypasses brand slides if new user registers
+        }
+
+        // Fetch user conversations if online
+        try {
+          const liveConvs = await fetchConversations();
+          if (liveConvs && liveConvs.length) {
+            setConversations(liveConvs);
+          }
+        } catch (convErr) {
+          console.warn("Failed to load conversations from session:", convErr);
         }
       } catch (err) {
         console.error("Error loading paces for session:", err);
@@ -327,6 +355,48 @@ function App() {
       if (unsubscribe) unsubscribe(); // Closes WebSocket connection
     };
   }, [activePace?.id]);
+
+  // --- EFFECT 2.5: MESSAGES LOADER & REALTIME SYNCING ---
+  useEffect(() => {
+    if (!activeConversation?.id || !isLiveId(activeConversation.id)) return;
+
+    let isMounted = true;
+
+    async function loadMessages() {
+      try {
+        const data = await fetchMessages(activeConversation.id);
+        if (isMounted) {
+          setMessages((prev) => ({
+            ...prev,
+            [activeConversation.id]: data
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching messages:", err);
+      }
+    }
+    loadMessages();
+
+    // Subscribe to messages in realtime
+    const unsubscribe = subscribeToMessages(activeConversation.id, (newMsg) => {
+      if (isMounted) {
+        setMessages((prev) => {
+          const currentList = prev[activeConversation.id] || [];
+          const duplicate = currentList.find((m) => m.id === newMsg.id);
+          if (duplicate) return prev;
+          return {
+            ...prev,
+            [activeConversation.id]: [...currentList, newMsg]
+          };
+        });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [activeConversation?.id]);
 
   // --- EFFECT 3: LANDING PAGE INVITATIONS RESOLVER ---
   useEffect(() => {
@@ -514,6 +584,86 @@ function App() {
     }
   }
 
+  // --- CHAT MESSAGE SENDER WITH BACKEND SYNC ---
+  async function handleSendChatMessage(text, type = "text", extra = {}) {
+    if (!session && !isSupabaseConfigured) {
+      const newMsg = {
+        id: `local-msg-${Date.now()}`,
+        sender_id: "me",
+        sender_name: "Me",
+        type,
+        content: text,
+        created_at: new Date().toISOString(),
+        ...extra
+      };
+      setMessages((prev) => ({
+        ...prev,
+        [activeConversation.id]: [...(prev[activeConversation.id] || []), newMsg]
+      }));
+      return;
+    }
+
+    try {
+      const sentMsg = await sendChatMessage({
+        conversationId: activeConversation.id,
+        type,
+        content: text,
+        referenceMemoryId: extra.reference_memory_id || null,
+        referencePaceId: extra.reference_pace_id || null
+      });
+
+      setMessages((prev) => {
+        const currentList = prev[activeConversation.id] || [];
+        if (currentList.some((m) => m.id === sentMsg.id)) return prev;
+        return {
+          ...prev,
+          [activeConversation.id]: [...currentList, sentMsg]
+        };
+      });
+    } catch (err) {
+      console.error("Failed to send chat message to Supabase:", err);
+      alert("Failed to send message: " + err.message);
+    }
+  }
+
+  // --- MEMORY REACTION ECHO WITH BACKEND SYNC ---
+  async function handleToggleReaction(memoryId, emoji) {
+    const currentReactions = reactions[memoryId] || [];
+    const hasReacted = currentReactions.some((r) => r.user_id === "me" && r.emoji === emoji);
+
+    // Optimistic local state update
+    setReactions((prev) => {
+      const list = prev[memoryId] || [];
+      let next;
+      if (hasReacted) {
+        next = list.filter((r) => !(r.user_id === "me" && r.emoji === emoji));
+      } else {
+        next = [...list, { user_id: "me", user_name: "Me", emoji }];
+      }
+      return {
+        ...prev,
+        [memoryId]: next
+      };
+    });
+
+    if (!session && !isSupabaseConfigured) return;
+
+    try {
+      if (hasReacted) {
+        await removeMemoryReaction({ memoryId, emoji });
+      } else {
+        await addMemoryReaction({ memoryId, emoji });
+      }
+    } catch (err) {
+      console.error("Failed to sync reaction with Supabase:", err);
+      // Revert reactions state on failure
+      setReactions((prev) => ({
+        ...prev,
+        [memoryId]: currentReactions
+      }));
+    }
+  }
+
   // Saves a new memory post
   async function handleCreateMemory(form) {
     let mediaUrl = form.mediaUrl;
@@ -624,6 +774,16 @@ function App() {
             syncStatus={syncStatus}
             session={session}
             onSignOut={handleSignOut}
+            conversations={conversations}
+            setConversations={setConversations}
+            activeConversation={activeConversation}
+            setActiveConversation={setActiveConversation}
+            reactions={reactions}
+            setReactions={setReactions}
+            messages={messages}
+            setMessages={setMessages}
+            onSendMessage={handleSendChatMessage}
+            onToggleReaction={handleToggleReaction}
           />
         )}
       </AnimatePresence>

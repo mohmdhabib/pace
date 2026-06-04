@@ -49,6 +49,15 @@ import LockedMemoryOverlay from "../components/LockedMemoryOverlay";
 import PhoneChrome from "../shared/ui/PhoneChrome";
 import Profile from "./Profile";
 
+// New components and views for V2
+import BottomNav from "../shared/ui/BottomNav";
+import HomeDiscover from "./HomeDiscover";
+import ChatsView from "../features/chat/ChatsView";
+import ChatThread from "../features/chat/ChatThread";
+import RelationshipProfile from "../features/relationships/RelationshipProfile";
+import ActivityView from "../features/activity/ActivityView";
+import Avatar from "../shared/ui/Avatar";
+
 /**
  * AIRecap Sub-Component
  * Renders a stylish summary card explaining overall memory moods.
@@ -85,11 +94,61 @@ function AIRecap() {
  * @param {Object} props.memory - The parsed memory item details.
  * @param {Number} props.index - Row index in list, used to stagger elements left/right organically.
  */
-function MemoryCard({ memory, index }) {
+function MemoryCard({ memory, index, reactions = {}, setReactions, onToggleReaction }) {
   // Evaluates if the memory post should be locked under time-lock parameters
   const [isTimeLocked, setIsTimeLocked] = useState(
     memory.lockedUntil ? new Date(memory.lockedUntil) > new Date() : false
   );
+
+  // Reaction-specific animations state
+  const [floatingEmojis, setFloatingEmojis] = useState([]);
+
+  const memoryReactions = reactions[memory.id] || [];
+
+  const triggerFloatingEmoji = (emoji) => {
+    const id = Date.now() + Math.random();
+    setFloatingEmojis((prev) => [...prev, { id, emoji }]);
+    setTimeout(() => {
+      setFloatingEmojis((prev) => prev.filter((item) => item.id !== id));
+    }, 800);
+  };
+
+  const handleToggleReaction = (emoji) => {
+    const hasReacted = memoryReactions.some((r) => r.user_id === "me" && r.emoji === emoji);
+    if (!hasReacted) {
+      triggerFloatingEmoji(emoji);
+    }
+
+    if (onToggleReaction) {
+      onToggleReaction(memory.id, emoji);
+      return;
+    }
+
+    if (!setReactions) return;
+    setReactions((prev) => {
+      const current = prev[memory.id] || [];
+      const isReacted = current.some((r) => r.user_id === "me" && r.emoji === emoji);
+
+      let next;
+      if (isReacted) {
+        next = current.filter((r) => !(r.user_id === "me" && r.emoji === emoji));
+      } else {
+        next = [...current, { user_id: "me", user_name: "Me", emoji }];
+      }
+      return {
+        ...prev,
+        [memory.id]: next
+      };
+    });
+  };
+
+  const formatReactionText = (reacts) => {
+    const names = reacts.map((r) => (r.user_id === "me" ? "You" : r.user_name));
+    if (names.length === 0) return "";
+    if (names.length === 1) return `${names[0]} reacted`;
+    if (names.length === 2) return `${names[0]} and ${names[1]} reacted`;
+    return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]} reacted`;
+  };
 
   return (
     <motion.article
@@ -148,6 +207,54 @@ function MemoryCard({ memory, index }) {
         )}
       </div>
       
+      {/* Reactions ("Echoes") Bar */}
+      {!isTimeLocked && (
+        <div className="relative mt-2.5 flex flex-col gap-1.5 bg-white/[0.04] border border-white/5 rounded-xl p-2 max-w-xs">
+          {/* Row of 5 emojis */}
+          <div className="flex gap-2.5 relative">
+            {["❤️‍🔥", "🥹", "🫂", "✨", "🔥"].map((emoji) => {
+              const hasReacted = memoryReactions.some((r) => r.user_id === "me" && r.emoji === emoji);
+              return (
+                <button
+                  key={emoji}
+                  onClick={() => handleToggleReaction(emoji)}
+                  className={`text-sm p-1 rounded-lg active:scale-75 transition duration-200 ${
+                    hasReacted ? "bg-white/10 scale-110 border border-white/10" : "hover:bg-white/5 border border-transparent"
+                  }`}
+                >
+                  {emoji}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Floating Emoji animations */}
+          <div className="absolute right-6 top-2 overflow-visible pointer-events-none">
+            <AnimatePresence>
+              {floatingEmojis.map((item) => (
+                <motion.span
+                  key={item.id}
+                  className="absolute text-base pointer-events-none"
+                  initial={{ opacity: 1, y: 0, scale: 0.8 }}
+                  animate={{ opacity: 0, y: -45, scale: 1.4 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
+                >
+                  {item.emoji}
+                </motion.span>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* List of who reacted */}
+          {memoryReactions.length > 0 && (
+            <p className="text-[10px] text-pace-smoke font-medium pl-1 leading-none">
+              {formatReactionText(memoryReactions)}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Creator metadata */}
       <p className="mt-3 text-xs text-pace-smoke font-medium">
         {memory.author} · {memory.mood}
@@ -281,7 +388,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
  * Timeline Sub-Component
  * Renders the vertical feed scrolls for a specific selected space.
  */
-function Timeline({ pace, memories, setView, setModal, hasStoryContent }) {
+function Timeline({ pace, memories, setView, setModal, hasStoryContent, reactions, setReactions, onToggleReaction }) {
   return (
     <motion.div
       className="relative flex flex-1 flex-col overflow-hidden"
@@ -299,7 +406,7 @@ function Timeline({ pace, memories, setView, setModal, hasStoryContent }) {
         {/* Navigation back home */}
         <button
           className="absolute left-5 top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl active:scale-95 transition"
-          onClick={() => setView("home")}
+          onClick={() => setView("paces")}
           aria-label="Back home"
         >
           <ChevronLeft size={20} />
@@ -361,7 +468,14 @@ function Timeline({ pace, memories, setView, setModal, hasStoryContent }) {
       <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-24">
         <AIRecap />
         {memories.map((memory, index) => (
-          <MemoryCard memory={memory} key={`${memory.type}-${index}`} index={index} />
+          <MemoryCard
+            memory={memory}
+            key={`${memory.type}-${index}`}
+            index={index}
+            reactions={reactions}
+            setReactions={setReactions}
+            onToggleReaction={onToggleReaction}
+          />
         ))}
       </div>
       
@@ -390,13 +504,37 @@ export default function Shell({
   setModal,
   syncStatus,
   session,
-  onSignOut
+  onSignOut,
+  // new props for V2
+  conversations,
+  setConversations,
+  activeConversation,
+  setActiveConversation,
+  reactions,
+  setReactions,
+  messages,
+  setMessages,
+  onSendMessage,
+  onToggleReaction
 }) {
+  const [selectedUserId, setSelectedUserId] = useState("user_arjun");
+
   return (
     <PhoneChrome maxWidth="max-w-[430px]">
       {/* AnimatePresence triggers exit fades on keyed sub-components as they unmount */}
       <AnimatePresence mode="wait">
         {view === "home" && (
+          <HomeDiscover
+            paces={paces}
+            memories={memories}
+            setView={setView}
+            setActivePace={setActivePace}
+            setActiveConversation={setActiveConversation}
+            setSelectedUserId={setSelectedUserId}
+            key="discover"
+          />
+        )}
+        {view === "paces" && (
           <Home
             paces={paces}
             syncStatus={syncStatus}
@@ -404,7 +542,7 @@ export default function Shell({
             setView={setView}
             setModal={setModal}
             setActivePace={setActivePace}
-            key="home"
+            key="paces"
           />
         )}
         {view === "timeline" && (
@@ -413,8 +551,52 @@ export default function Shell({
             memories={memories}
             setView={setView}
             setModal={setModal}
+            reactions={reactions}
+            setReactions={setReactions}
+            onToggleReaction={onToggleReaction}
             key="timeline"
             hasStoryContent={memories && memories.length > 0}
+          />
+        )}
+        {view === "chats" && (
+          <ChatsView
+            conversations={conversations}
+            setView={setView}
+            setActiveConversation={setActiveConversation}
+            setModal={setModal}
+            key="chats"
+          />
+        )}
+        {view === "chat-thread" && (
+          <ChatThread
+            conversation={activeConversation}
+            setView={setView}
+            messages={messages}
+            setMessages={setMessages}
+            paces={paces}
+            memories={memories}
+            setActivePace={setActivePace}
+            setSelectedUserId={setSelectedUserId}
+            onSendMessage={onSendMessage}
+            key="chat-thread"
+          />
+        )}
+        {view === "relationship" && (
+          <RelationshipProfile
+            userId={selectedUserId}
+            setView={setView}
+            paces={paces}
+            setActivePace={setActivePace}
+            key="relationship"
+          />
+        )}
+        {view === "activity" && (
+          <ActivityView
+            memories={memories}
+            paces={paces}
+            setView={setView}
+            setActivePace={setActivePace}
+            key="activity"
           />
         )}
         {view === "profile" && (
@@ -426,6 +608,16 @@ export default function Shell({
           />
         )}
       </AnimatePresence>
+
+      {/* Render BottomNav on main tabs */}
+      {["home", "paces", "chats", "activity", "profile"].includes(view) && (
+        <BottomNav
+          activeTab={view}
+          setActiveTab={setView}
+          unreadChatsCount={conversations.reduce((acc, c) => acc + c.unreadCount, 0)}
+          hasNewActivity={true}
+        />
+      )}
     </PhoneChrome>
   );
 }
