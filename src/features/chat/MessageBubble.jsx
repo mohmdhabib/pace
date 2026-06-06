@@ -29,10 +29,10 @@ export default function MessageBubble({ message, isMe, setView, setActivePace })
   if (type === "text") {
     return (
       <div
-        className={`rounded-[1.2rem] px-4 py-2.5 text-sm ${
+        className={`rounded-2xl px-4 py-2.5 text-[14px] leading-relaxed tracking-wide backdrop-blur-md ${
           isMe
-            ? "bg-pace-pearl/10 border border-white/8 text-pace-pearl rounded-tr-sm"
-            : "bg-white/[0.05] border border-white/5 text-pace-pearl rounded-tl-sm"
+            ? "bg-gradient-to-br from-[#8f6b67]/22 to-[#cfc6ba]/5 border border-white/10 text-pace-pearl rounded-tr-sm shadow-[0_4px_16px_rgba(245,241,234,0.02)]"
+            : "bg-gradient-to-br from-[#191816]/90 to-[#10100f]/85 border border-white/[0.05] text-pace-bone rounded-tl-sm shadow-sm"
         }`}
       >
         <p className="leading-relaxed">{content}</p>
@@ -44,10 +44,10 @@ export default function MessageBubble({ message, isMe, setView, setActivePace })
   if (type === "voice") {
     return (
       <div
-        className={`rounded-[1.2rem] p-3 flex items-center gap-3 min-w-[200px] ${
+        className={`rounded-2xl p-3 flex items-center gap-3 min-w-[210px] backdrop-blur-md ${
           isMe
-            ? "bg-pace-pearl/10 border border-white/8 text-pace-pearl rounded-tr-sm"
-            : "bg-white/[0.05] border border-white/5 text-pace-pearl rounded-tl-sm"
+            ? "bg-gradient-to-br from-[#8f6b67]/22 to-[#cfc6ba]/5 border border-white/10 text-pace-pearl rounded-tr-sm shadow-sm"
+            : "bg-gradient-to-br from-[#191816]/90 to-[#10100f]/85 border border-white/[0.05] text-pace-pearl rounded-tl-sm shadow-sm"
         }`}
       >
         <button

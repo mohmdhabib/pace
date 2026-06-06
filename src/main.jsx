@@ -55,9 +55,11 @@ import {
   themeByMood,
   unarchivePace,
   updatePace,
+  updateProfile,
   uploadMemoryFile
 } from "./lib/paceApi";
 import {
+  supabase,
   getSession,
   isSupabaseConfigured,
   onAuthChange,
@@ -74,7 +76,9 @@ import {
   sendMessage as sendChatMessage,
   subscribeToMessages,
   addReaction as addMemoryReaction,
-  removeReaction as removeMemoryReaction
+  removeReaction as removeMemoryReaction,
+  getOrCreatePaceGroupChat,
+  joinPaceGroupChat
 } from "./lib/chatApi";
 
 // Modular Feature-Sliced Design (FSD) imports
@@ -92,6 +96,7 @@ import StoryMode from "./features/memories/StoryMode";
 // Auxiliary overlay components
 import JoinPaceModal from "./components/JoinPaceModal";
 import CapsuleLockModal from "./components/CapsuleLockModal";
+import NewChatModal from "./components/NewChatModal";
 import "./styles.css";
 
 /**
@@ -231,7 +236,7 @@ function App() {
         // Fetch user conversations if online
         try {
           const liveConvs = await fetchConversations();
-          if (liveConvs && liveConvs.length) {
+          if (liveConvs) {
             setConversations(liveConvs);
           }
         } catch (convErr) {
@@ -296,8 +301,8 @@ function App() {
       if (!initialLoadDone) return; // Prevent loop conflicts during pre-load queries
       
       setSession((currentSession) => {
-        // Prevent unnecessary query loops if credentials didn't change
-        if (currentSession?.user?.id === nextSession?.user?.id) {
+        // Prevent unnecessary query loops if credentials didn't change (checking ID and update time)
+        if (currentSession?.user?.id === nextSession?.user?.id && currentSession?.user?.updated_at === nextSession?.user?.updated_at) {
           return currentSession;
         }
         if (!nextSession) {
@@ -355,6 +360,70 @@ function App() {
       if (unsubscribe) unsubscribe(); // Closes WebSocket connection
     };
   }, [activePace?.id]);
+
+  // --- EFFECT 2.4: GLOBAL CHAT AND CONVERSATIONS REALTIME SYNC ---
+  useEffect(() => {
+    if (!session?.user?.id || !isSupabaseConfigured) return;
+
+    let isMounted = true;
+    let refreshTimer = null;
+
+    // Debounced inbox refresh to prevent rapid-fire DB queries
+    const refreshInbox = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(async () => {
+        try {
+          const liveConvs = await fetchConversations();
+          if (isMounted && liveConvs) {
+            setConversations(liveConvs);
+          }
+        } catch (err) {
+          console.warn("Failed to refresh inbox on realtime sync:", err);
+        }
+      }, 300);
+    };
+
+    // 1. Listen for new conversations or members added (e.g. user accepts invite, starting new DM)
+    const membersChannel = supabase
+      .channel("global-members-channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversation_members"
+        },
+        (payload) => {
+          console.log("Realtime: Conversation member change detected:", payload);
+          refreshInbox();
+        }
+      )
+      .subscribe();
+
+    // 2. Listen for new messages globally to update the lastMessage preview in the inbox
+    const messagesChannel = supabase
+      .channel("global-messages-inbox-channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages"
+        },
+        (payload) => {
+          console.log("Realtime: New message globally:", payload);
+          refreshInbox();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      supabase.removeChannel(membersChannel);
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [session?.user?.id]);
 
   // --- EFFECT 2.5: MESSAGES LOADER & REALTIME SYNCING ---
   useEffect(() => {
@@ -427,6 +496,35 @@ function App() {
 
   // --- TRANSACTION METHODS ---
 
+  // Updates user profile display name and avatar URL
+  async function handleUpdateProfile({ displayName, avatarUrl }) {
+    if (session) {
+      const updatedProfile = await updateProfile({ displayName, avatarUrl });
+      
+      // Update session user metadata locally to force immediate React render
+      setSession((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          user: {
+            ...prev.user,
+            updated_at: new Date().toISOString(),
+            user_metadata: {
+              ...prev.user.user_metadata,
+              full_name: displayName,
+              avatar_url: avatarUrl
+            }
+          }
+        };
+      });
+      return updatedProfile;
+    } else {
+      // Offline mode: save to local storage
+      localStorage.setItem("pace_guest_name", displayName);
+      localStorage.setItem("pace_guest_avatar", avatarUrl);
+    }
+  }
+
   // Writes a new Pace space row to database
   async function handleCreatePace(form) {
     // CASE 1: OFFLINE SANDBOX MODE GUESTS
@@ -476,6 +574,18 @@ function App() {
       setAppPaces((current) => [hydrated, ...current]);
       setActivePace(hydrated);
       setSyncStatus("Synced privately");
+
+      // Auto-create/get the group chat conversation for this Pace
+      try {
+        await getOrCreatePaceGroupChat(livePace.id, livePace.title);
+        const liveConvs = await fetchConversations();
+        if (liveConvs) {
+          setConversations(liveConvs);
+        }
+      } catch (convErr) {
+        console.warn("Failed to auto-create group chat conversation:", convErr);
+      }
+
       return hydrated;
     } catch (error) {
       console.error("createPace error:", error);
@@ -784,6 +894,7 @@ function App() {
             setMessages={setMessages}
             onSendMessage={handleSendChatMessage}
             onToggleReaction={handleToggleReaction}
+            onProfileUpdate={handleUpdateProfile}
           />
         )}
       </AnimatePresence>
@@ -859,6 +970,24 @@ function App() {
             onCreate={handleCreateInvite}
           />
         )}
+
+        {/* New Chat Contacts Selector Modal */}
+        {modal === "new-chat" && (
+          <NewChatModal
+            paces={displayedPaces}
+            session={session}
+            onClose={() => setModal(null)}
+            onChatStarted={(newConv) => {
+              setModal(null);
+              setConversations((prev) => {
+                if (prev.some((c) => c.id === newConv.id)) return prev;
+                return [newConv, ...prev];
+              });
+              setActiveConversation(newConv);
+              setView("chat-thread");
+            }}
+          />
+        )}
         
         {/* Story Mode Cinematic Slideshow Player */}
         {modal === "story" && (
@@ -904,6 +1033,17 @@ function App() {
                   setActivePace(matched);
                   setStarted(true);
                   setView("timeline"); // Direct route to timeline
+
+                  // Refresh conversations to get the group chat conversation of the joined Pace
+                  try {
+                    await joinPaceGroupChat(paceId);
+                    const liveConvs = await fetchConversations();
+                    if (liveConvs) {
+                      setConversations(liveConvs);
+                    }
+                  } catch (convErr) {
+                    console.warn("Failed to refresh conversations after join:", convErr);
+                  }
                 }
               } catch (err) {
                 console.error("Error refreshing paces after join:", err);

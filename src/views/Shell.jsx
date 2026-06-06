@@ -371,7 +371,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
       </div>
 
       {/* Floating Plus Button to trigger Space Creator overlays */}
-      <div className="absolute bottom-5 left-1/2 z-30 -translate-x-1/2 w-max">
+      <div className="absolute bottom-24 left-1/2 z-30 -translate-x-1/2 w-max">
         <button
           className="flex h-14 items-center gap-2 rounded-full border border-white/15 bg-pace-pearl px-5 text-sm font-semibold text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02]"
           onClick={() => setModal("create")}
@@ -515,7 +515,8 @@ export default function Shell({
   messages,
   setMessages,
   onSendMessage,
-  onToggleReaction
+  onToggleReaction,
+  onProfileUpdate
 }) {
   const [selectedUserId, setSelectedUserId] = useState("user_arjun");
 
@@ -578,6 +579,7 @@ export default function Shell({
             setActivePace={setActivePace}
             setSelectedUserId={setSelectedUserId}
             onSendMessage={onSendMessage}
+            session={session}
             key="chat-thread"
           />
         )}
@@ -604,6 +606,7 @@ export default function Shell({
             setView={setView}
             session={session}
             onSignOut={onSignOut}
+            onProfileUpdate={onProfileUpdate}
             key="profile"
           />
         )}

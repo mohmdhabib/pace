@@ -23,8 +23,11 @@ export default function ChatThread({
   memories = [],
   setActivePace,
   setSelectedUserId,
-  onSendMessage
+  onSendMessage,
+  session
 }) {
+  // Current user ID for message alignment — UUID from Supabase session, or "me" for offline mode
+  const currentUserId = session?.user?.id || "me";
   const [inputText, setInputText] = useState("");
   const [showAttachments, setShowAttachments] = useState(false);
   const [showMemoryPicker, setShowMemoryPicker] = useState(false);
@@ -159,28 +162,59 @@ export default function ChatThread({
           </div>
         ) : (
           threadMessages.map((msg, index) => {
-            const isMe = msg.sender_id === "me";
+            const isMe = msg.sender_id === currentUserId || msg.sender_id === "me";
+            const prevMsg = threadMessages[index - 1];
+            const nextMsg = threadMessages[index + 1];
+            
+            const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
+            const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
+
             return (
               <div
                 key={msg.id || index}
-                className={`flex flex-col ${isMe ? "items-end" : "items-start"} space-y-1`}
+                className={`flex items-start gap-2.5 ${isMe ? "justify-end text-right" : "justify-start text-left"} ${
+                  isFirstInGroup ? "mt-4" : "mt-1.5"
+                }`}
               >
-                <div className={`max-w-[85%] ${isMe ? "text-right" : "text-left"}`}>
+                {/* Avatar Column */}
+                {!isMe && (
+                  <div className="w-8 shrink-0 flex justify-center">
+                    {isLastInGroup ? (
+                      <Avatar src={msg.sender_avatar} name={msg.sender_name} size="sm" />
+                    ) : (
+                      <div className="w-8" />
+                    )}
+                  </div>
+                )}
+                
+                <div className="max-w-[78%] flex flex-col">
+                  {/* Sender Name (above the bubble, only in group chats on the first message) */}
+                  {!isMe && isFirstInGroup && conversation.type === "pace_group" && (
+                    <span className="text-[10px] font-bold text-pace-bone/70 uppercase tracking-widest mb-1.5 pl-1 block">
+                      {msg.sender_name}
+                    </span>
+                  )}
+                  
                   <MessageBubble
                     message={msg}
                     isMe={isMe}
                     setView={setView}
                     setActivePace={setActivePace}
                   />
-                  <div className="px-1.5 mt-1 flex items-center justify-end gap-1.5 text-[9px] text-pace-smoke/50 font-medium">
-                    {!isMe && <span>{msg.sender_name} · </span>}
-                    <span>
-                      {new Date(msg.created_at || Date.now()).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
-                    </span>
-                  </div>
+                  
+                  {/* Timestamp below the bubble (only if last in group to avoid clutter) */}
+                  {isLastInGroup && (
+                    <div className={`px-1.5 mt-1.5 flex items-center gap-1.5 text-[9px] text-pace-smoke/45 font-medium ${
+                      isMe ? "justify-end" : "justify-start"
+                    }`}>
+                      <span>
+                        {new Date(msg.created_at || Date.now()).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

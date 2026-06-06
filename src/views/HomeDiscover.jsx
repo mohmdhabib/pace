@@ -7,11 +7,11 @@
  * ============================================================================
  */
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Play, ArrowRight, Heart } from "lucide-react";
 import Avatar from "../shared/ui/Avatar";
-import { mockRelationshipStats } from "../shared/constants";
+import { fetchCloseConnections } from "../lib/relationshipApi";
 
 export default function HomeDiscover({
   paces,
@@ -24,11 +24,26 @@ export default function HomeDiscover({
   // Find a featured memory (use the first one, or one marked core-memory)
   const featuredMemory = memories.find((m) => m.mood === "core-memory") || memories[0];
 
-  // Get active connections based on mock data keys
-  const connections = Object.keys(mockRelationshipStats).map((key) => ({
-    id: key,
-    ...mockRelationshipStats[key]
-  }));
+  // Fetch close connections from Supabase dynamically
+  const [connections, setConnections] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadConnections() {
+      try {
+        const data = await fetchCloseConnections();
+        if (isMounted) {
+          setConnections(data);
+        }
+      } catch (err) {
+        console.warn("Failed to load close connections:", err);
+      }
+    }
+    loadConnections();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Filter photos for the recent moments stream
   const recentPhotos = memories.filter((m) => m.type === "photo");
@@ -105,10 +120,7 @@ export default function HomeDiscover({
           </h3>
           <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
             {connections.map((conn) => {
-              // Map connection id to avatar URL (based on mockConversations details)
-              const avatarUrl = conn.id === "user_arjun" 
-                ? "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=150&q=80"
-                : "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80";
+              const avatarUrl = conn.avatar_url;
 
               return (
                 <button

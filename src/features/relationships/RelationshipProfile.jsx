@@ -7,7 +7,7 @@
  * ============================================================================
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ChevronLeft,
@@ -22,7 +22,7 @@ import {
   Compass
 } from "lucide-react";
 import Avatar from "../../shared/ui/Avatar";
-import { mockRelationshipStats } from "../../shared/constants";
+import { fetchRelationship } from "../../lib/relationshipApi";
 
 export default function RelationshipProfile({
   userId = "user_arjun",
@@ -31,13 +31,44 @@ export default function RelationshipProfile({
   setActivePace
 }) {
   const [activeFilter, setActiveFilter] = useState("all");
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Get data for target user from mock stats or default to Arjun
-  const profileData = mockRelationshipStats[userId] || mockRelationshipStats.user_arjun;
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        setLoading(true);
+        const data = await fetchRelationship(userId);
+        if (isMounted) {
+          setProfileData(data);
+        }
+      } catch (err) {
+        console.error("Error loading relationship profile:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
+  if (loading || !profileData) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center bg-[#0d0d0c] text-pace-pearl">
+        <Sparkles size={24} className="text-pace-bone animate-pulse" />
+        <p className="mt-4 text-xs tracking-[0.25em] text-pace-smoke uppercase select-none">
+          gathering moments
+        </p>
+      </div>
+    );
+  }
+
   const friendName = profileData.name;
 
   const handleBack = () => {
-    // Return to chat thread (conv_arjun or conv_riya)
     setView("chats");
   };
 
@@ -101,9 +132,9 @@ export default function RelationshipProfile({
             </div>
             <div className="rounded-full border-4 border-[#0d0d0c] shadow-glow">
               <Avatar
-                src={userId === "user_riya" 
+                src={profileData.avatarUrl || (userId === "user_riya" 
                   ? "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80"
-                  : "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=150&q=80"}
+                  : "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=150&q=80")}
                 name={friendName}
                 size="xl"
               />

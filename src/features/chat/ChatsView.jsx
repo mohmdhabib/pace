@@ -132,14 +132,11 @@ export default function ChatsView({
         )}
       </div>
 
-      {/* Floating Create Chat Button */}
-      <div className="absolute bottom-5 left-1/2 z-30 -translate-x-1/2 w-max">
+      {/* Floating Create Chat Button — positioned above the BottomNav */}
+      <div className="absolute bottom-24 left-1/2 z-30 -translate-x-1/2 w-max">
         <button
           className="flex h-14 items-center gap-2 rounded-full border border-white/15 bg-pace-pearl px-5 text-sm font-semibold text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02]"
-          onClick={() => {
-            // Placeholder: opens mock notification / invite overlay or new chat prompt
-            alert("Create a direct message by inviting friends or selecting a close connection.");
-          }}
+          onClick={() => setModal("new-chat")}
         >
           <MessageSquarePlus size={18} />
           New Chat

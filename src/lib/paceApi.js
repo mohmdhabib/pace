@@ -89,6 +89,13 @@ export function normalizePace(row) {
   const members = row.pace_members && row.pace_members.length > 0
     ? row.pace_members.map((member) => member.profiles?.display_name || "Friend")
     : ["Me"];
+  const membersDetails = row.pace_members && row.pace_members.length > 0
+    ? row.pace_members.map((member) => ({
+        id: member.profiles?.id || member.user_id,
+        displayName: member.profiles?.display_name || "Friend",
+        avatarUrl: member.profiles?.avatar_url
+      }))
+    : [];
   const latest = row.memories?.[0];
   
   // Scrapes the space's memories to find the latest 3 photo uploads for the cards collage preview
@@ -106,6 +113,7 @@ export function normalizePace(row) {
     title: row.title,
     mood: row.mood,
     members,
+    membersDetails,
     last: latest ? relativeTime(latest.created_at) : "New Pace",
     snippet: latest?.caption || row.description || "A private room for the moments that still glow.",
     color: row.color_theme || themeByMood[row.mood] || themeByMood.nostalgic,
@@ -188,7 +196,7 @@ export async function fetchPaces() {
   const { data, error } = await supabase
     .from("paces")
     .select(
-      "*, pace_members(role, profiles(display_name, avatar_url)), memories(caption, type, media_url, created_at)"
+      "*, pace_members(user_id, role, profiles(id, display_name, avatar_url)), memories(caption, type, media_url, created_at)"
     )
     .order("updated_at", { ascending: false })
     .order("created_at", { foreignTable: "memories", ascending: false })
@@ -443,4 +451,46 @@ export async function unarchivePace(paceId) {
   if (error) throw error;
   return normalizePace(data);
 }
+
+/**
+ * updateProfile
+ * Updates the user's profile display name and avatar URL in profiles table and auth metadata.
+ */
+export async function updateProfile({ displayName, avatarUrl }) {
+  if (!supabase) return null;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("No authenticated session found.");
+
+  // 1. Update public.profiles table
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        id: user.id,
+        display_name: displayName,
+        avatar_url: avatarUrl
+      },
+      { onConflict: "id" }
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // 2. Sync to auth.users user_metadata
+  const { error: authError } = await supabase.auth.updateUser({
+    data: {
+      full_name: displayName,
+      avatar_url: avatarUrl
+    }
+  });
+
+  if (authError) {
+    console.warn("Failed to sync profile update to auth metadata:", authError);
+  }
+
+  return data;
+}
+
 

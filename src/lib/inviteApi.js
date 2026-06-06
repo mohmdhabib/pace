@@ -27,6 +27,7 @@
  */
 
 import { supabase } from "./supabase";
+import { joinPaceGroupChat } from "./chatApi";
 
 /**
  * fetchInviteDetails
@@ -157,6 +158,8 @@ export async function acceptInvite(token, paceId, userId) {
 
   if (!rpcError) {
     console.log("acceptInvite RPC success, joined pace:", rpcData);
+    // Also join the group chat conversation (client fallback helper)
+    await joinPaceGroupChat(rpcData);
     return rpcData; // Returns the target pace_id
   }
 
@@ -186,6 +189,9 @@ export async function acceptInvite(token, paceId, userId) {
     .from("pace_invites")
     .update({ accepted_by: userId })
     .eq("token", token);
+
+  // Also join the group chat conversation (client fallback helper)
+  await joinPaceGroupChat(paceId);
 
   console.log("Fallback client-side join success for pace:", paceId);
   return paceId;
