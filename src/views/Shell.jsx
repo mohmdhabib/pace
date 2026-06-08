@@ -57,6 +57,7 @@ import ChatThread from "../features/chat/ChatThread";
 import RelationshipProfile from "../features/relationships/RelationshipProfile";
 import ActivityView from "../features/activity/ActivityView";
 import Avatar from "../shared/ui/Avatar";
+import QuickCapture from "../features/camera/QuickCapture";
 
 /**
  * AIRecap Sub-Component
@@ -505,6 +506,7 @@ export default function Shell({
   syncStatus,
   session,
   onSignOut,
+  onCreateMemory,
   // new props for V2
   conversations,
   setConversations,
@@ -608,6 +610,16 @@ export default function Shell({
             onSignOut={onSignOut}
             onProfileUpdate={onProfileUpdate}
             key="profile"
+          />
+        )}
+        {view === "camera" && (
+          <QuickCapture
+            paces={paces}
+            setView={setView}
+            setActivePace={setActivePace}
+            onCreateMemory={onCreateMemory}
+            session={session}
+            key="camera"
           />
         )}
       </AnimatePresence>

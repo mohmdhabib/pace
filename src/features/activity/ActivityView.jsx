@@ -7,10 +7,12 @@
  * ============================================================================
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Bell, Clock, Heart, Eye } from "lucide-react";
 import Avatar from "../../shared/ui/Avatar";
+import { fetchRecentActivities, fetchFlashback, subscribeToActivity } from "../../lib/activityApi";
+import { isSupabaseConfigured } from "../../lib/supabase";
 
 export default function ActivityView({
   memories = [],
@@ -19,9 +21,12 @@ export default function ActivityView({
   setActivePace
 }) {
   const [revealOnThisDay, setRevealOnThisDay] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const [milestonesState, setMilestonesState] = useState([]);
+  const [flashback, setFlashback] = useState(null);
 
-  // Mock notifications / echoes list
-  const recentActivities = [
+  // Fallback Mock Data
+  const mockActivities = [
     {
       id: "act-1",
       user: { name: "Riya", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80" },
@@ -48,8 +53,7 @@ export default function ActivityView({
     }
   ];
 
-  // Mock milestones
-  const milestones = [
+  const mockMilestones = [
     {
       id: "mile-1",
       title: "100 Shared Memories! 🎉",
@@ -64,8 +68,45 @@ export default function ActivityView({
     }
   ];
 
-  // On This Day memory (using a photo memory)
-  const flashbackMemory = memories.find((m) => m.type === "photo") || memories[0];
+  // Fetch Live Data
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadData() {
+      if (!isSupabaseConfigured) {
+        setActivities(mockActivities);
+        setMilestonesState(mockMilestones);
+        setFlashback(memories.find((m) => m.type === "photo") || memories[0]);
+        return;
+      }
+
+      const fetchedActivities = await fetchRecentActivities();
+      const paceIds = paces.map(p => p.id);
+      const fetchedFlashback = await fetchFlashback(paceIds);
+
+      if (isMounted) {
+        setActivities(fetchedActivities.length ? fetchedActivities : mockActivities);
+        setMilestonesState(mockMilestones); // Keep mock milestones until backend engine is built
+        setFlashback(fetchedFlashback || (memories.find((m) => m.type === "photo") || memories[0]));
+      }
+    }
+
+    loadData();
+
+    // Subscribe to new real-time reactions
+    const unsubscribe = subscribeToActivity((newActivity) => {
+      if (isMounted) {
+        setActivities((prev) => [newActivity, ...prev].slice(0, 20)); // keep last 20
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [paces, memories]);
+
+  const flashbackMemory = flashback;
 
   return (
     <motion.div
@@ -154,7 +195,7 @@ export default function ActivityView({
           </h3>
 
           <div className="space-y-4">
-            {recentActivities.map((act) => (
+            {activities.map((act) => (
               <div
                 key={act.id}
                 className="flex items-start justify-between border-b border-white/[0.04] pb-4"
@@ -186,7 +227,7 @@ export default function ActivityView({
           </h3>
 
           <div className="space-y-3">
-            {milestones.map((mile) => (
+            {milestonesState.map((mile) => (
               <div
                 key={mile.id}
                 className="rounded-[1.2rem] border border-white/5 bg-white/[0.02] p-4 flex justify-between items-start"

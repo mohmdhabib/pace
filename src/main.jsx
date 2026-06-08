@@ -884,6 +884,7 @@ function App() {
             syncStatus={syncStatus}
             session={session}
             onSignOut={handleSignOut}
+            onCreateMemory={handleCreateMemory}
             conversations={conversations}
             setConversations={setConversations}
             activeConversation={activeConversation}

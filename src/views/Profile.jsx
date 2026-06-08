@@ -27,11 +27,12 @@
  * ============================================================================
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, Sparkles } from "lucide-react";
 import Stat from "../shared/ui/Stat";
 import Avatar from "../shared/ui/Avatar";
+import { supabase } from "../lib/supabase";
 
 const PRESET_AVATARS = [
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
@@ -53,6 +54,38 @@ export default function Profile({ setView, session, onSignOut, onProfileUpdate }
   // --- STATE HOOKS ---
   const [status, setStatus] = useState("");
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [stats, setStats] = useState({ active: 7, archived: 19, memories: 143 });
+  const [recap, setRecap] = useState("Your year kept returning to late nights, coast roads, and people who made ordinary days cinematic.");
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStats() {
+      if (!session) return;
+      try {
+        const [activeData, archivedData, memoriesData, recapsData] = await Promise.all([
+          supabase.from('paces').select('id', { count: 'exact', head: true }).is('archived_at', null).eq('owner_id', session.user.id),
+          supabase.from('paces').select('id', { count: 'exact', head: true }).not('archived_at', 'is', null).eq('owner_id', session.user.id),
+          supabase.from('memories').select('id', { count: 'exact', head: true }).eq('author_id', session.user.id),
+          supabase.from('ai_recaps').select('summary').order('created_at', { ascending: false }).limit(1)
+        ]);
+        
+        if (isMounted) {
+          setStats({
+            active: activeData.count || 0,
+            archived: archivedData.count || 0,
+            memories: memoriesData.count || 0
+          });
+          if (recapsData.data && recapsData.data.length > 0) {
+            setRecap(recapsData.data[0].summary);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load profile stats:", err);
+      }
+    }
+    loadStats();
+    return () => { isMounted = false; };
+  }, [session]);
 
   // --- IDENTITY & LOCAL PROCESSING ---
   const email = session?.user?.email;
@@ -252,9 +285,9 @@ export default function Profile({ setView, session, onSignOut, onProfileUpdate }
 
       {/* Grid displaying three reusable metric Stat components */}
       <div className="mt-8 grid grid-cols-3 gap-3">
-        <Stat value="7" label="active" />
-        <Stat value="19" label="archived" />
-        <Stat value="143" label="memories" />
+        <Stat value={stats.active.toString()} label="active" />
+        <Stat value={stats.archived.toString()} label="archived" />
+        <Stat value={stats.memories.toString()} label="memories" />
       </div>
 
       {/* Emotional AI Recap Highlights Card */}
@@ -264,7 +297,7 @@ export default function Profile({ setView, session, onSignOut, onProfileUpdate }
           Recap history
         </div>
         <p className="mt-3 text-xl font-medium leading-7">
-          Your year kept returning to late nights, coast roads, and people who made ordinary days cinematic.
+          {recap}
         </p>
       </div>
 
