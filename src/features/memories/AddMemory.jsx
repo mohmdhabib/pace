@@ -56,17 +56,20 @@ import Field from "../../shared/ui/Field";
  * @param {Boolean} props.active - If true, applies high-contrast active background colors.
  * @param {Function} props.onClick - Action routine when tapped.
  */
+/**
+ * MemoryAction Sub-Component — slim pill tab variant
+ */
 function MemoryAction({ icon, label, active, onClick }) {
   return (
     <button
-      className={`grid h-24 place-items-center rounded-[1.3rem] border text-sm transition ${
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-semibold transition active:scale-95 ${
         active
-          ? "border-pace-bone bg-pace-pearl text-pace-black"
-          : "border-white/10 bg-white/[0.06] text-pace-bone"
+          ? "border-pace-bone bg-pace-pearl text-pace-black shadow-[0_0_12px_rgba(244,238,227,0.3)]"
+          : "border-white/10 bg-white/[0.05] text-pace-bone hover:bg-white/[0.09]"
       }`}
       onClick={onClick}
     >
-      <span className="grid h-10 w-10 place-items-center rounded-full bg-white/[0.08]">{icon}</span>
+      {icon}
       {label}
     </button>
   );
@@ -81,7 +84,7 @@ function MemoryAction({ icon, label, active, onClick }) {
 export default function AddMemory({ onClose, onCreate, maxWidth = "max-w-[485px]" }) {
   // --- FORM STATES ---
   const [type, setType] = useState("photo"); // Tracks 'photo', 'text', 'voice', or 'video'
-  const [caption, setCaption] = useState("felt like a core memory while it was happening");
+  const [caption, setCaption] = useState("");
   const [locationName, setLocationName] = useState("Besant Nagar");
   const [mood, setMood] = useState("soft");
   
@@ -115,48 +118,48 @@ export default function AddMemory({ onClose, onCreate, maxWidth = "max-w-[485px]
         <Close onClose={onClose} />
       </div>
 
-      {/* Media Type Tab Grid */}
-      <div className="grid grid-cols-4 gap-2">
+      {/* Media Type Tab Row — slim pill tabs */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
         <MemoryAction
-          icon={<Camera size={16} />}
+          icon={<Camera size={14} />}
           label="Photo"
           active={type === "photo"}
           onClick={() => {
             setType("photo");
-            setCaption("felt like a core memory while it was happening");
+            setCaption("");
             setFile(null);
             setPreviewUrl(null);
           }}
         />
         <MemoryAction
-          icon={<FileText size={16} />}
+          icon={<FileText size={14} />}
           label="Note"
           active={type === "text"}
           onClick={() => {
             setType("text");
-            setCaption(""); // Clears caption to act as blank slate notes
+            setCaption("");
             setFile(null);
             setPreviewUrl(null);
           }}
         />
         <MemoryAction
-          icon={<Mic2 size={16} />}
+          icon={<Mic2 size={14} />}
           label="Voice"
           active={type === "voice"}
           onClick={() => {
             setType("voice");
-            setCaption("felt like a core memory while it was happening");
+            setCaption("");
             setFile(null);
             setPreviewUrl(null);
           }}
         />
         <MemoryAction
-          icon={<Film size={16} />}
+          icon={<Film size={14} />}
           label="Video"
           active={type === "video"}
           onClick={() => {
             setType("video");
-            setCaption("felt like a core memory while it was happening");
+            setCaption("");
             setFile(null);
             setPreviewUrl(null);
           }}

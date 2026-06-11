@@ -129,14 +129,17 @@ function App() {
   // --- GLOBAL STATES ---
   const [started, setStarted] = useState(false); // Flags narrative onboarding completion
   const [session, setSession] = useState(null); // Holds logged-in user profile details (null if offline sandbox guest)
-  const [appPaces, setAppPaces] = useState(paces); // Paces space models array (defaults to fallback mock datasets)
-  const [appMemories, setAppMemories] = useState(memories); // Memories feed lists array
-  const [activePace, setActivePace] = useState(paces[0]); // Active space pointer loaded in timeline
+  // Default state is always mock data — guests and the prototype mode always see a full demo experience.
+  // When a real authenticated session loads, loadPacesForSession clears mocks and replaces with real DB data.
+  const [appPaces, setAppPaces] = useState(paces);
+  const [appMemories, setAppMemories] = useState(memories);
+  const [activePace, setActivePace] = useState(paces[0]);
   const [view, setView] = useState("home"); // Page router track state ('home', 'timeline', 'profile')
   const [modal, setModal] = useState(null); // Active overlay modal state ('create', 'edit-pace', etc.)
   const [invite, setInvite] = useState(null); // Created invite tokens parameter context
   
   // --- CHAT & RELATIONSHIP STATES ---
+  // Same pattern: mock data by default, real data replaces it on authenticated load.
   const [conversations, setConversations] = useState(mockConversations);
   const [activeConversation, setActiveConversation] = useState(null);
   const [reactions, setReactions] = useState(mockReactions);
@@ -161,7 +164,8 @@ function App() {
   const [loadingSession, setLoadingSession] = useState(isSupabaseConfigured);
 
   // --- LOGOUT SESSION RESETTER ---
-  // Restores all local collections to pre-configured fallback mockup constants on sign-out
+  // On sign-out, restore mock data so the app returns to the full prototype/guest demo experience.
+  // Guests who browse without signing in should always see the rich mock scrapbook content.
   function resetToSignedOut() {
     setSession(null);
     setStarted(false);
@@ -207,6 +211,16 @@ function App() {
       if (!currentSession) {
         setSyncStatus("Sign in to unlock private sync");
         return;
+      }
+      // A real session is confirmed — immediately clear mock placeholder data before loading real DB data.
+      // This prevents mock Riya/Arjun/Chennai data from leaking into the authenticated experience.
+      if (isMounted) {
+        setAppPaces([]);
+        setAppMemories([]);
+        setActivePace(null);
+        setConversations([]);
+        setReactions({});
+        setMessages({});
       }
       try {
         // Upserts a profile record inside profiles table to prevent foreign keys breaks

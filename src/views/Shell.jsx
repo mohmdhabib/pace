@@ -28,10 +28,11 @@
  * ============================================================================
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
+  Camera,
   ChevronLeft,
   ImagePlus,
   Lock,
@@ -39,8 +40,10 @@ import {
   Plus,
   Settings,
   Sparkles,
+  User,
   Users,
-  Bot
+  Bot,
+  UserPlus
 } from "lucide-react";
 import { covers } from "../shared/constants";
 import PaceCard from "../features/spaces/PaceCard";
@@ -55,7 +58,7 @@ import HomeDiscover from "./HomeDiscover";
 import ChatsView from "../features/chat/ChatsView";
 import ChatThread from "../features/chat/ChatThread";
 import RelationshipProfile from "../features/relationships/RelationshipProfile";
-import ActivityView from "../features/activity/ActivityView";
+import PulseView from "../features/pulse/PulseView";
 import Avatar from "../shared/ui/Avatar";
 import QuickCapture from "../features/camera/QuickCapture";
 
@@ -269,7 +272,17 @@ function MemoryCard({ memory, index, reactions = {}, setReactions, onToggleReact
  * Renders the main dashboard containing all active Spaces.
  */
 function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) {
-  const [showArchived, setShowArchived] = useState(false); // Archive drawer state
+  const [showArchived, setShowArchived] = useState(false);
+  // Pulse the CTA button briefly on first render to draw new users' attention
+  const [ctaPulse, setCtaPulse] = useState(false);
+  const isNewUser = paces.filter((p) => !p.archivedAt).length === 0;
+
+  useEffect(() => {
+    if (isNewUser) {
+      const t = setTimeout(() => setCtaPulse(true), 600);
+      return () => clearTimeout(t);
+    }
+  }, [isNewUser]);
 
   const activePaces = paces.filter((p) => !p.archivedAt);
   const archivedPaces = paces.filter((p) => p.archivedAt);
@@ -281,7 +294,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="no-scrollbar flex-1 overflow-y-auto pb-24">
+      <div className="no-scrollbar flex-1 overflow-y-auto pb-28">
         {/* Dashboard Header banner */}
         <header className="px-5 pb-3 pt-8 text-left">
           <div className="flex items-center justify-between">
@@ -292,13 +305,13 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
                 <p className="mt-2 max-w-[12rem] truncate text-xs text-pace-bone font-medium">{session.user.email}</p>
               )}
             </div>
-            {/* Navigates users to User Settings & archived stats */}
+            {/* Profile button */}
             <button
               className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-pace-bone backdrop-blur-xl hover:bg-white/[0.12] transition duration-200 active:scale-95"
               onClick={() => setView("profile")}
               aria-label="Open profile"
             >
-              <Archive size={18} />
+              <User size={18} />
             </button>
           </div>
           <p className="mt-5 max-w-[18rem] text-sm leading-6 text-pace-bone/75">
@@ -315,21 +328,58 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
                 key={pace.id}
                 onOpen={() => {
                   setActivePace(pace);
-                  setView("timeline"); // Switch active tab views
+                  setView("timeline");
                 }}
               />
             ))
           ) : (
-            // Placeholder shown if users have no active spaces
-            <div className="flex flex-1 flex-col items-center justify-center text-center p-8 border border-white/5 bg-white/[0.02] rounded-[2rem] min-h-[30rem] w-full snap-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-pace-pearl/10 border border-pace-pearl/20 text-pace-pearl mb-4">
-                <Sparkles size={20} className="animate-pulse" />
-              </div>
-              <h3 className="text-base font-semibold text-pace-pearl">Your first era awaits</h3>
-              <p className="mt-2 text-xs leading-relaxed text-pace-smoke max-w-[200px]">
-                Create a private shared room for a trip, a semester, or a late night phase.
+            /* Premium empty state — new user has no active paces */
+            <motion.div
+              className="relative flex flex-1 flex-col items-center justify-center text-center px-8 py-12 border border-white/[0.06] bg-white/[0.02] rounded-[2rem] min-h-[26rem] w-full snap-center overflow-hidden"
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {/* Ambient glow */}
+              <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-48 w-48 rounded-full bg-[#c6b79d]/8 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-8 right-8 h-32 w-32 rounded-full bg-[#8f6b67]/10 blur-3xl" />
+
+              {/* Icon */}
+              <motion.div
+                className="relative mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-pace-pearl/20 bg-pace-pearl/8 text-pace-pearl"
+                animate={ctaPulse ? { boxShadow: ["0 0 0px rgba(244,238,227,0)", "0 0 24px rgba(244,238,227,0.25)", "0 0 0px rgba(244,238,227,0)"] } : {}}
+                transition={{ duration: 1.8, repeat: 2 }}
+              >
+                <Sparkles size={22} />
+              </motion.div>
+
+              <h3 className="text-lg font-semibold text-pace-pearl mb-2">Your first era awaits</h3>
+              <p className="text-xs leading-relaxed text-pace-smoke max-w-[200px] mb-6">
+                Create a private shared room for a trip, a semester, or a late-night phase.
               </p>
-            </div>
+
+              {/* Primary CTA */}
+              <motion.button
+                id="paces-empty-create"
+                className="flex items-center gap-2 rounded-2xl bg-pace-pearl px-5 py-3 text-sm font-semibold text-pace-black shadow-glow transition active:scale-95 mb-3"
+                onClick={() => setModal("create")}
+                animate={ctaPulse ? { scale: [1, 1.04, 1] } : {}}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                <Plus size={16} />
+                Create a Pace
+              </motion.button>
+
+              {/* Secondary ghost CTA */}
+              <button
+                id="paces-empty-invite"
+                className="flex items-center gap-1.5 rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-2.5 text-xs font-semibold text-pace-smoke hover:text-pace-pearl hover:bg-white/[0.08] transition active:scale-95"
+                onClick={() => setModal("invite")}
+              >
+                <UserPlus size={13} />
+                Join via invite link
+              </button>
+            </motion.div>
           )}
         </div>
 
@@ -344,7 +394,6 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
               <span>{showArchived ? "Hide Archived Eras" : `Show Archived Eras (${archivedPaces.length})`}</span>
             </button>
 
-            {/* smooth collapsible frame displaying archived card streams */}
             <AnimatePresence>
               {showArchived && (
                 <motion.div
@@ -371,14 +420,86 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
         )}
       </div>
 
-      {/* Floating Plus Button to trigger Space Creator overlays */}
-      <div className="absolute bottom-24 left-1/2 z-30 -translate-x-1/2 w-max">
-        <button
-          className="flex h-14 items-center gap-2 rounded-full border border-white/15 bg-pace-pearl px-5 text-sm font-semibold text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02]"
-          onClick={() => setModal("create")}
+      {/* Floating Plus Button — only show when user already has paces */}
+      {activePaces.length > 0 && (
+        <div className="absolute bottom-24 left-1/2 z-30 -translate-x-1/2 w-max">
+          <button
+            id="paces-create-btn"
+            className="flex h-14 items-center gap-2 rounded-full border border-white/15 bg-pace-pearl px-5 text-sm font-semibold text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02]"
+            onClick={() => setModal("create")}
+          >
+            <Plus size={18} />
+            Create Pace
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/**
+ * TimelineEmpty Sub-Component
+ * Premium empty state shown inside a Pace when no memories exist yet.
+ */
+function TimelineEmpty({ setModal, paceName }) {
+  return (
+    <motion.div
+      className="flex flex-1 flex-col items-center justify-center px-8 pb-24 pt-4 text-center"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+    >
+      {/* Animated camera icon */}
+      <div className="relative mb-8 flex h-24 w-24 items-center justify-center">
+        <motion.div
+          className="absolute inset-0 rounded-full bg-[#d2c5b1]/6 blur-xl"
+          animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.8, 0.4] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <div className="absolute inset-2 rounded-full border border-white/[0.06] bg-white/[0.03]" />
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-pace-bone backdrop-blur-xl">
+          <ImagePlus size={22} />
+        </div>
+        {/* Floating sparkle dots */}
+        <motion.span
+          className="absolute top-1 right-2 text-[10px]"
+          animate={{ opacity: [0, 1, 0], scale: [0.6, 1.2, 0.6] }}
+          transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
+        >✨</motion.span>
+        <motion.span
+          className="absolute bottom-1 left-2 text-[10px]"
+          animate={{ opacity: [0, 1, 0], scale: [0.6, 1.2, 0.6] }}
+          transition={{ duration: 2.4, repeat: Infinity, delay: 0.9 }}
+        >✨</motion.span>
+      </div>
+
+      <h2 className="text-xl font-semibold text-pace-pearl leading-snug mb-2">
+        No memories yet
+      </h2>
+      <p className="text-sm text-pace-smoke leading-relaxed max-w-[230px] mb-7">
+        Be the first to capture this era.
+        Drop a photo, voice note, or a moment in words.
+      </p>
+
+      {/* CTAs */}
+      <div className="flex flex-col gap-3 w-full max-w-[240px]">
+        <motion.button
+          id="timeline-empty-add-memory"
+          className="flex items-center justify-center gap-2.5 rounded-2xl bg-pace-pearl px-5 py-3.5 text-sm font-semibold text-pace-black shadow-glow transition active:scale-[0.97] hover:scale-[1.02]"
+          onClick={() => setModal("memory")}
+          animate={{ scale: [1, 1.02, 1] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
         >
-          <Plus size={18} />
-          Create Pace
+          <ImagePlus size={16} />
+          Add First Memory
+        </motion.button>
+        <button
+          id="timeline-empty-invite"
+          className="flex items-center justify-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3.5 text-sm font-semibold text-pace-bone backdrop-blur-xl transition active:scale-[0.97] hover:bg-white/[0.09]"
+          onClick={() => setModal("invite")}
+        >
+          <UserPlus size={16} />
+          Invite a Friend
         </button>
       </div>
     </motion.div>
@@ -389,7 +510,7 @@ function Home({ paces, syncStatus, session, setView, setModal, setActivePace }) 
  * Timeline Sub-Component
  * Renders the vertical feed scrolls for a specific selected space.
  */
-function Timeline({ pace, memories, setView, setModal, hasStoryContent, reactions, setReactions, onToggleReaction }) {
+function Timeline({ pace, memories, setView, setModal, hasStoryContent, reactions, setReactions, onToggleReaction, onOpenCamera }) {
   return (
     <motion.div
       className="relative flex flex-1 flex-col overflow-hidden"
@@ -425,32 +546,44 @@ function Timeline({ pace, memories, setView, setModal, hasStoryContent, reaction
           </button>
         )}
         
-        {/* Settings button to manage space Row details */}
-        <button
-          className="absolute right-[8.5rem] top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
-          onClick={() => setModal("edit-pace")}
-          aria-label="Edit Era Settings"
-        >
-          <Settings size={17} />
-        </button>
-        
-        {/* Invite friends overlay trigger */}
-        <button
-          className="absolute right-[4.75rem] top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
-          onClick={() => setModal("invite")}
-          aria-label="Invite friends"
-        >
-          <Users size={17} />
-        </button>
-        
-        {/* Explainer modal for capsule locks */}
-        <button
-          className="absolute right-5 top-8 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
-          onClick={() => setModal("capsule")}
-          aria-label="Open capsule"
-        >
-          <Lock size={17} />
-        </button>
+        {/* Right-side action buttons row */}
+        <div className="absolute right-5 top-8 flex items-center gap-2">
+          {/* Quick Camera capture */}
+          <button
+            className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
+            onClick={onOpenCamera}
+            aria-label="Quick capture"
+          >
+            <Camera size={17} />
+          </button>
+
+          {/* Settings button */}
+          <button
+            className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
+            onClick={() => setModal("edit-pace")}
+            aria-label="Edit Era Settings"
+          >
+            <Settings size={17} />
+          </button>
+
+          {/* Invite friends */}
+          <button
+            className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
+            onClick={() => setModal("invite")}
+            aria-label="Invite friends"
+          >
+            <Users size={17} />
+          </button>
+
+          {/* Time capsule lock */}
+          <button
+            className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-xl hover:bg-black/50 transition active:scale-95 text-pace-bone"
+            onClick={() => setModal("capsule")}
+            aria-label="Open capsule"
+          >
+            <Lock size={17} />
+          </button>
+        </div>
         
         {/* Space Title texts pinned to the bottom of the header */}
         <div className="absolute bottom-5 left-5 right-5">
@@ -459,35 +592,42 @@ function Timeline({ pace, memories, setView, setModal, hasStoryContent, reaction
           <div className="mt-4 flex items-center gap-3 text-xs text-pace-bone">
             <span className="flex items-center gap-1 font-semibold">
               <Users size={14} className="text-pace-smoke" />
-              {pace.members.join(", ")}
+              {Array.isArray(pace.members) ? pace.members.join(", ") : pace.members}
             </span>
           </div>
         </div>
       </div>
       
-      {/* Scrollable list mapping memories */}
-      <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-24">
-        <AIRecap />
-        {memories.map((memory, index) => (
-          <MemoryCard
-            memory={memory}
-            key={`${memory.type}-${index}`}
-            index={index}
-            reactions={reactions}
-            setReactions={setReactions}
-            onToggleReaction={onToggleReaction}
-          />
-        ))}
-      </div>
+      {/* Scrollable feed — or premium empty state */}
+      {memories.length === 0 ? (
+        <TimelineEmpty setModal={setModal} paceName={pace.title} />
+      ) : (
+        <div className="no-scrollbar flex-1 overflow-y-auto px-5 pb-24">
+          <AIRecap />
+          {memories.map((memory, index) => (
+            <MemoryCard
+              memory={memory}
+              key={`${memory.type}-${index}`}
+              index={index}
+              reactions={reactions}
+              setReactions={setReactions}
+              onToggleReaction={onToggleReaction}
+            />
+          ))}
+        </div>
+      )}
       
-      {/* Add new memory floating pill */}
-      <button
-        className="absolute bottom-5 right-5 grid h-14 w-14 place-items-center rounded-full bg-pace-pearl text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02]"
-        onClick={() => setModal("memory")}
-        aria-label="Add memory"
-      >
-        <ImagePlus size={21} />
-      </button>
+      {/* Add new memory floating pill — fixed above the bottom nav, always visible */}
+      {memories.length > 0 && (
+        <button
+          id="timeline-add-memory-btn"
+          className="absolute bottom-24 right-5 grid h-14 w-14 place-items-center rounded-full bg-pace-pearl text-pace-black shadow-glow transition active:scale-[0.98] hover:scale-[1.02] z-20"
+          onClick={() => setModal("memory")}
+          aria-label="Add memory"
+        >
+          <ImagePlus size={21} />
+        </button>
+      )}
     </motion.div>
   );
 }
@@ -530,6 +670,8 @@ export default function Shell({
           <HomeDiscover
             paces={paces}
             memories={memories}
+            session={session}
+            setModal={setModal}
             setView={setView}
             setActivePace={setActivePace}
             setActiveConversation={setActiveConversation}
@@ -559,11 +701,13 @@ export default function Shell({
             onToggleReaction={onToggleReaction}
             key="timeline"
             hasStoryContent={memories && memories.length > 0}
+            onOpenCamera={() => setView("camera")}
           />
         )}
         {view === "chats" && (
           <ChatsView
             conversations={conversations}
+            session={session}
             setView={setView}
             setActiveConversation={setActiveConversation}
             setModal={setModal}
@@ -594,13 +738,11 @@ export default function Shell({
             key="relationship"
           />
         )}
-        {view === "activity" && (
-          <ActivityView
-            memories={memories}
+        {view === "pulse" && (
+          <PulseView
+            session={session}
             paces={paces}
-            setView={setView}
-            setActivePace={setActivePace}
-            key="activity"
+            key="pulse"
           />
         )}
         {view === "profile" && (
@@ -625,7 +767,7 @@ export default function Shell({
       </AnimatePresence>
 
       {/* Render BottomNav on main tabs */}
-      {["home", "paces", "chats", "activity", "profile"].includes(view) && (
+      {["home", "paces", "chats", "pulse", "profile"].includes(view) && (
         <BottomNav
           activeTab={view}
           setActiveTab={setView}

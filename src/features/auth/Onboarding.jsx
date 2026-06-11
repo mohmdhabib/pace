@@ -38,12 +38,12 @@
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Apple,
   Lock,
   Mail,
   Moon,
   Sparkles,
-  Users
+  Users,
+  Send
 } from "lucide-react";
 import { covers } from "../../shared/constants";
 import { getSession } from "../../lib/supabase";
@@ -96,10 +96,10 @@ export default function Onboarding({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  
+
   // Segmentation slider states ('magic', 'password', or 'signup')
   const [authMode, setAuthMode] = useState("magic");
-  
+
   // Status operational strings and spinner states
   const [authStatus, setAuthStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -152,11 +152,11 @@ export default function Onboarding({
     try {
       await onSignup(email.trim(), password, { full_name: name || undefined });
       const currentSession = await getSession(); // Verifies if user logged in
-      
+
       // Auto-upserts username profile records
       if (currentSession?.user) await ensureProfile(currentSession.user);
       setSession(currentSession);
-      
+
       if (currentSession) {
         setAuthStatus("Account created and signed in.");
         onBegin(); // Bypasses to shell
@@ -181,11 +181,11 @@ export default function Onboarding({
     try {
       await onSigninPassword(email.trim(), password);
       const currentSession = await getSession();
-      
+
       // Syncs database profiles
       if (currentSession?.user) await ensureProfile(currentSession.user);
       setSession(currentSession);
-      
+
       if (currentSession) {
         setAuthStatus("Signed in.");
         onBegin();
@@ -217,14 +217,14 @@ export default function Onboarding({
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
           />
         </AnimatePresence>
-        
+
         {/* Contrast Overlay Gradient: Dark gradient ensuring page overlay text blocks are highly readable */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#080807]/30 via-[#080807]/65 to-[#080807]" />
       </div>
 
       {/* Main Container content area */}
       <div className="relative z-10 flex flex-col flex-1 overflow-y-auto no-scrollbar justify-between px-5 pb-8 pt-8 min-h-[calc(100vh-6rem)] md:min-h-0 max-w-[485px] mx-auto w-full">
-        
+
         {/* Top brand header */}
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-2.5 text-sm font-semibold text-pace-pearl tracking-wide">
@@ -233,7 +233,7 @@ export default function Onboarding({
             </div>
             <span>Pace</span>
           </div>
-          
+
           {/* Quick toggle swapping auth view and storytelling narrative */}
           <button
             onClick={() => {
@@ -346,9 +346,8 @@ export default function Onboarding({
                           setAuthMode(tab.id);
                           setAuthStatus("");
                         }}
-                        className={`relative z-10 flex-1 py-2 text-xs font-semibold rounded-full transition-colors duration-300 ${
-                          active ? "text-pace-black" : "text-pace-smoke hover:text-pace-pearl"
-                        }`}
+                        className={`relative z-10 flex-1 py-2 text-xs font-semibold rounded-full transition-colors duration-300 ${active ? "text-pace-black" : "text-pace-smoke hover:text-pace-pearl"
+                          }`}
                       >
                         {active && (
                           <motion.div
@@ -421,11 +420,10 @@ export default function Onboarding({
                       initial={{ opacity: 0, height: 0, y: -8 }}
                       animate={{ opacity: 1, height: "auto", y: 0 }}
                       exit={{ opacity: 0, height: 0, y: -8 }}
-                      className={`mt-4 overflow-hidden rounded-xl border p-3 text-xs leading-relaxed ${
-                        authStatus.includes("Check your email") || authStatus.includes("Signed in")
+                      className={`mt-4 overflow-hidden rounded-xl border p-3 text-xs leading-relaxed ${authStatus.includes("Check your email") || authStatus.includes("Signed in")
                           ? "border-pace-moss/20 bg-pace-moss/5 text-pace-moss"
                           : "border-pace-wine/20 bg-pace-wine/5 text-pace-wine"
-                      }`}
+                        }`}
                     >
                       {authStatus}
                     </motion.div>
@@ -435,24 +433,31 @@ export default function Onboarding({
                 {/* Primary Submit Action Trigger */}
                 <button
                   type="button"
-                  className="mt-6 flex h-13 w-full items-center justify-center rounded-full bg-pace-pearl text-sm font-bold text-pace-black shadow-glow hover:scale-[1.01] active:scale-[0.98] transition duration-200"
+                  className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-gradient-to-r from-pace-pearl via-white to-pace-bone text-sm font-bold text-pace-black shadow-glow hover:scale-[1.015] hover:shadow-[0_0_24px_rgba(245,241,234,0.3)] active:scale-[0.985] transition-all duration-200"
                   onClick={
                     authMode === "magic"
                       ? handleEmailAuth
                       : authMode === "signup"
-                      ? handleSignup
-                      : handleSigninPassword
+                        ? handleSignup
+                        : handleSigninPassword
                   }
                   disabled={loading}
                 >
                   {loading ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-pace-black border-t-transparent" />
-                  ) : authMode === "magic" ? (
-                    "Send Access Token"
-                  ) : authMode === "signup" ? (
-                    "Register Era Access"
                   ) : (
-                    "Unlock Vault"
+                    <div className="flex items-center justify-center gap-2">
+                      {authMode === "magic" && <Send size={14} className="opacity-80" />}
+                      {authMode === "signup" && <Sparkles size={14} className="opacity-80" />}
+                      {authMode === "password" && <Lock size={14} className="opacity-80" />}
+                      <span>
+                        {authMode === "magic"
+                          ? "Send Access Token"
+                          : authMode === "signup"
+                            ? "Register Era Access"
+                            : "Unlock Vault"}
+                      </span>
+                    </div>
                   )}
                 </button>
 
@@ -464,27 +469,17 @@ export default function Onboarding({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="w-full">
                   {/* Google OAuth Login */}
                   <button
                     onClick={() => handleProviderAuth("google")}
                     disabled={loading}
-                    className="flex h-11 items-center justify-center gap-2 rounded-full border border-white/5 bg-white/[0.03] hover:bg-white/[0.06] text-xs font-semibold text-pace-bone active:scale-95 transition-all"
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-white/5 bg-white/[0.03] hover:bg-white/[0.06] text-xs font-semibold text-pace-bone active:scale-95 transition-all"
                   >
-                    <svg className="h-4 w-4 fill-current text-pace-bone" viewBox="0 0 24 24">
-                      <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 5.92 1 12 5.92 1 12s4.92 11 11.24 11c6.59 0 11-4.63 11-11.2 0-.756-.08-1.333-.18-1.515H12.24z" />
+                    <svg className="h-4 w-4 fill-current text-pace-bone" viewBox="0 0 16 16">
+                      <path d="M15.545 6.558a9.4 9.4 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.7 7.7 0 0 1 5.352 2.082l-2.284 2.284A4.35 4.35 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.8 4.8 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.7 3.7 0 0 0 1.599-2.431H8v-3.08z" />
                     </svg>
                     Google
-                  </button>
-
-                  {/* Apple OAuth Login */}
-                  <button
-                    onClick={() => handleProviderAuth("apple")}
-                    disabled={loading}
-                    className="flex h-11 items-center justify-center gap-2 rounded-full border border-white/5 bg-white/[0.03] hover:bg-white/[0.06] text-xs font-semibold text-pace-bone active:scale-95 transition-all"
-                  >
-                    <Apple size={15} />
-                    Apple
                   </button>
                 </div>
 
