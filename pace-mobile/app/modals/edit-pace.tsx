@@ -1,23 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, Pressable, ScrollView, Image, ActivityIndicator, useColorScheme, Dimensions } from 'react-native';
+import { StyleSheet, View, TextInput, Pressable, ScrollView, Image, ActivityIndicator, useColorScheme, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { X, Sparkles, Image as ImageIcon, Check, Users, ShieldAlert } from 'lucide-react-native';
+import { X, Sparkles, Image as ImageIcon, Check, Archive, ShieldAlert } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
-import { createPace } from '@/lib/apis';
+import { fetchPaces, updatePace, archivePace, unarchivePace } from '@/lib/apis';
 import * as mock from '@/constants/mockData';
 
 const { width } = Dimensions.get('window');
 
-export default function CreatePaceModal() {
+export default function EditPaceModal() {
   const router = useRouter();
+  const { paceId } = useLocalSearchParams<{ paceId: string }>();
   const scheme = useColorScheme();
   const colorScheme = scheme ?? 'dark';
   const activeColors = Colors[colorScheme];
+
+  // Pace reference
+  const [pace, setPace] = useState<any>(null);
+  const [loadingPace, setLoadingPace] = useState(true);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -26,25 +31,47 @@ export default function CreatePaceModal() {
   const [selectedCover, setSelectedCover] = useState(mock.covers[0]);
   const [customCoverUri, setCustomCoverUri] = useState<string | null>(null);
 
-  // Invite states (mocked/UI select)
-  const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
-  const [friendsList, setFriendsList] = useState<any[]>([]);
-
   // Action states
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const moodsList = ['chaotic', 'peaceful', 'late-night', 'nostalgic', 'soft', 'adventure', 'core-memory'];
 
-  // Load some mock friends to show in the invite section
+  // Load existing pace details
   useEffect(() => {
-    setFriendsList([
-      { id: 'riya', name: 'Riya', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' },
-      { id: 'arjun', name: 'Arjun', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80' },
-      { id: 'aadhi', name: 'Aadhi', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80' },
-      { id: 'noor', name: 'Noor', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80' },
-    ]);
-  }, []);
+    async function loadPaceData() {
+      if (!paceId) {
+        setErrorMsg('Pace ID is missing.');
+        setLoadingPace(false);
+        return;
+      }
+      try {
+        const allPaces = await fetchPaces();
+        const found = allPaces.find((p: any) => p.id === paceId);
+        if (found) {
+          setPace(found);
+          setTitle(found.title);
+          setDescription(found.snippet || found.description || '');
+          setSelectedMood(found.mood || 'nostalgic');
+          
+          const isPreset = mock.covers.includes(found.cover);
+          if (isPreset) {
+            setSelectedCover(found.cover);
+          } else {
+            setCustomCoverUri(found.cover);
+            setSelectedCover(found.cover);
+          }
+        } else {
+          setErrorMsg('Scrapbook Era not found.');
+        }
+      } catch {
+        setErrorMsg('Failed to load Era details.');
+      } finally {
+        setLoadingPace(false);
+      }
+    }
+    loadPaceData();
+  }, [paceId]);
 
   const handlePickCustomCover = async () => {
     try {
@@ -70,13 +97,7 @@ export default function CreatePaceModal() {
     }
   };
 
-  const toggleFriend = (id: string) => {
-    setSelectedFriends((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       setErrorMsg('Please name this Era / Space.');
       return;
@@ -88,41 +109,76 @@ export default function CreatePaceModal() {
     try {
       const coverUrlToSave = customCoverUri || selectedCover;
 
-      const newPace = await createPace({
+      await updatePace(paceId, {
         title: title.trim(),
         description: description.trim() || null,
         mood: selectedMood,
-        coverUrl: coverUrlToSave,
+        cover_url: coverUrlToSave,
       });
 
-      // Navigate straight to the newly created Space timeline
-      if (newPace && newPace.id) {
-        router.replace({
-          pathname: '/pace/[id]',
-          params: { id: newPace.id },
-        } as any);
-      } else {
-        router.back();
-      }
+      Alert.alert('Success', 'Era settings saved.', [
+        { text: 'OK', onPress: () => router.replace({ pathname: '/pace/[id]', params: { id: paceId } } as any) }
+      ]);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to create Pace space. Please try again.');
+      setErrorMsg(err.message || 'Failed to save settings. Please try again.');
       setSubmitting(false);
     }
   };
 
+  const handleArchiveToggle = async () => {
+    if (!pace) return;
+    const isArchived = Boolean(pace.archivedAt);
+    
+    Alert.alert(
+      isArchived ? 'Restore Era' : 'Archive Era',
+      isArchived 
+        ? 'Restore this era back to your active dashboard?'
+        : 'Are you sure you want to archive this era? You can restore it anytime.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: isArchived ? 'Restore' : 'Archive', 
+          style: isArchived ? 'default' : 'destructive',
+          onPress: async () => {
+            setSubmitting(true);
+            try {
+              if (isArchived) {
+                await unarchivePace(paceId);
+              } else {
+                await archivePace(paceId);
+              }
+              router.replace('/(tabs)/paces');
+            } catch (err: any) {
+              setErrorMsg(err.message || 'Failed to update archiving state.');
+              setSubmitting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  if (loadingPace) {
+    return (
+      <ThemedView style={[styles.loadingContainer, { backgroundColor: activeColors.background }]}>
+        <ActivityIndicator size="large" color={activeColors.tint} />
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={[styles.container, { backgroundColor: activeColors.background }]}>
-      {/* Custom Modal Header */}
+      {/* Header */}
       <SafeAreaView style={styles.header} edges={['top']}>
         <Pressable onPress={() => router.back()} style={styles.closeBtn}>
           <X size={20} color={activeColors.text} />
         </Pressable>
-        <ThemedText style={styles.headerTitle}>New Scrapbook Era</ThemedText>
-        <Pressable onPress={handleCreate} disabled={submitting} style={styles.createBtn}>
+        <ThemedText style={styles.headerTitle}>Era Settings</ThemedText>
+        <Pressable onPress={handleSave} disabled={submitting} style={styles.saveBtn}>
           {submitting ? (
-            <ActivityIndicator size="small" color={activeColors.tint} />
+            <ActivityIndicator size="small" color="#000000" />
           ) : (
-            <ThemedText style={styles.createBtnText}>Create</ThemedText>
+            <ThemedText style={styles.saveBtnText}>Save</ThemedText>
           )}
         </Pressable>
       </SafeAreaView>
@@ -135,7 +191,7 @@ export default function CreatePaceModal() {
           </View>
         )}
 
-        {/* Space Title and Quote */}
+        {/* Form fields */}
         <View style={styles.formSection}>
           <View style={styles.inputWrap}>
             <ThemedText style={styles.sectionLabel}>Name this Era</ThemedText>
@@ -146,7 +202,6 @@ export default function CreatePaceModal() {
               value={title}
               onChangeText={setTitle}
               maxLength={40}
-              autoFocus
             />
           </View>
 
@@ -196,16 +251,14 @@ export default function CreatePaceModal() {
         <View style={styles.section}>
           <ThemedText style={styles.sectionLabel}>Select Cover Image</ThemedText>
           
-          {/* Main selected cover display */}
           <View style={styles.mainCoverDisplay}>
             <Image source={{ uri: selectedCover }} style={styles.mainCoverImage} />
             <Pressable onPress={handlePickCustomCover} style={styles.customCoverBtn}>
-              <ImageIcon size={14} color="#080807" />
+              <ImageIcon size={14} color="#000000" />
               <ThemedText style={styles.customCoverBtnText}>Upload Custom</ThemedText>
             </Pressable>
           </View>
 
-          {/* Curated list selection */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.curatedScroll}>
             {mock.covers.map((coverUrl, index) => {
               const isSelected = selectedCover === coverUrl && !customCoverUri;
@@ -221,7 +274,7 @@ export default function CreatePaceModal() {
                   <Image source={{ uri: coverUrl }} style={[styles.coverThumbnail, isSelected && styles.coverThumbnailSelected]} />
                   {isSelected && (
                     <View style={styles.coverSelectedCheck}>
-                      <Check size={12} color="#080807" />
+                      <Check size={12} color="#000000" />
                     </View>
                   )}
                 </Pressable>
@@ -230,42 +283,26 @@ export default function CreatePaceModal() {
           </ScrollView>
         </View>
 
-        {/* Invite friends */}
-        <View style={styles.section}>
-          <View style={styles.inviteHeader}>
-            <ThemedText style={styles.sectionLabel}>Add Co-Authors</ThemedText>
-            <View style={styles.badgeRow}>
-              <Users size={12} color="#8f877e" />
-              <ThemedText style={styles.badgeText}>{selectedFriends.length} selected</ThemedText>
-            </View>
+        {/* Archive / Restore Button */}
+        {pace && (
+          <View style={styles.dangerSection}>
+            <Pressable 
+              onPress={handleArchiveToggle}
+              style={[
+                styles.archiveBtn, 
+                { 
+                  backgroundColor: pace.archivedAt ? 'rgba(43, 48, 38, 0.15)' : 'rgba(59, 37, 34, 0.15)',
+                  borderColor: pace.archivedAt ? 'rgba(125, 133, 119, 0.3)' : 'rgba(143, 107, 103, 0.3)'
+                }
+              ]}
+            >
+              <Archive size={16} color={pace.archivedAt ? '#7d8577' : '#8f6b67'} />
+              <ThemedText style={[styles.archiveBtnText, { color: pace.archivedAt ? '#7d8577' : '#8f6b67' }]}>
+                {pace.archivedAt ? 'Restore Era (Unarchive)' : 'Archive Scrapbook Era'}
+              </ThemedText>
+            </Pressable>
           </View>
-          <ThemedText style={styles.sectionSublabel}>Co-authors can post polaroids and voice notes to this scrapbook.</ThemedText>
-
-          <View style={styles.friendsGrid}>
-            {friendsList.map((friend) => {
-              const isSelected = selectedFriends.includes(friend.id);
-              return (
-                <Pressable
-                  key={friend.id}
-                  onPress={() => toggleFriend(friend.id)}
-                  style={[
-                    styles.friendRow,
-                    { backgroundColor: activeColors.backgroundElement, borderColor: 'rgba(255, 255, 255, 0.05)' },
-                    isSelected && { backgroundColor: 'rgba(245, 241, 234, 0.05)', borderColor: '#f5f1ea' },
-                  ]}
-                >
-                  <Image source={{ uri: friend.avatar }} style={styles.friendAvatar} />
-                  <ThemedText style={[styles.friendName, isSelected && styles.friendNameActive]}>
-                    {friend.name}
-                  </ThemedText>
-                  <View style={[styles.checkCircle, isSelected && styles.checkCircleActive]}>
-                    {isSelected && <Check size={10} color="#080807" />}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+        )}
       </ScrollView>
     </ThemedView>
   );
@@ -274,6 +311,11 @@ export default function CreatePaceModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -292,14 +334,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  createBtn: {
+  saveBtn: {
     paddingVertical: 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     backgroundColor: '#f5f1ea',
     borderRadius: 12,
   },
-  createBtnText: {
-    color: '#080807',
+  saveBtnText: {
+    color: '#000000',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -333,12 +375,6 @@ const styles = StyleSheet.create({
     color: '#cfc6ba',
     textTransform: 'uppercase',
     letterSpacing: 1,
-  },
-  sectionSublabel: {
-    fontSize: 11,
-    color: '#8f877e',
-    marginTop: 4,
-    marginBottom: 12,
   },
   titleInput: {
     fontSize: 28,
@@ -415,7 +451,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   customCoverBtnText: {
-    color: '#080807',
+    color: '#000000',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -450,57 +486,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  inviteHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  dangerSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.04)',
     alignItems: 'center',
   },
-  badgeRow: {
+  archiveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  badgeText: {
-    fontSize: 12,
-    color: '#8f877e',
-    fontWeight: '500',
-  },
-  friendsGrid: {
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    width: '100%',
     gap: 10,
   },
-  friendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 12,
-  },
-  friendAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  friendName: {
-    flex: 1,
+  archiveBtnText: {
     fontSize: 13,
-    color: '#8f877e',
-  },
-  friendNameActive: {
-    color: '#f5f1ea',
-    fontWeight: '600',
-  },
-  checkCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkCircleActive: {
-    backgroundColor: '#f5f1ea',
-    borderColor: '#f5f1ea',
+    fontWeight: '700',
   },
 });

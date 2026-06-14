@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Pressable, ScrollView, View, ActivityIndicator, RefreshControl, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lock, Activity, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase, isSupabaseConfigured, safeStorage } from '@/lib/supabase';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import Avatar from '@/components/avatar';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import {
   getMyTodayDrop,
   dropTodaysPulse,
@@ -184,7 +183,7 @@ export default function PulseScreen() {
     const TODAY = new Date();
     const dateStr = `${TODAY.getFullYear()}-${String(TODAY.getMonth() + 1).padStart(2, '0')}-${String(TODAY.getDate()).padStart(2, '0')}`;
     const LS_KEY = `pace_pulse_${dateStr}`;
-    await AsyncStorage.removeItem(LS_KEY);
+    await safeStorage.removeItem(LS_KEY);
     setMyDrop(null);
     setSelectedEmoji(null);
     setFriendDrops([]);
@@ -233,7 +232,7 @@ export default function PulseScreen() {
 
               <View style={styles.promptWrap}>
                 <ThemedText style={styles.promptTitle}>How are you feeling today?</ThemedText>
-                <ThemedText style={styles.promptSub}>Pick one emoji. That's it.</ThemedText>
+                <ThemedText style={styles.promptSub}>Pick one emoji. That{"'"}s it.</ThemedText>
               </View>
 
               {/* Emoji Grid */}
@@ -276,7 +275,7 @@ export default function PulseScreen() {
                     ]}
                   >
                     {dropping ? (
-                      <ActivityIndicator size="small" color="#080807" />
+                      <ActivityIndicator size="small" color="#000000" />
                     ) : (
                       <>
                         <ThemedText style={styles.dropBtnEmoji}>{selectedEmoji.emoji}</ThemedText>
@@ -382,7 +381,7 @@ export default function PulseScreen() {
               {/* Dev reset link */}
               <Pressable onPress={handleReset} style={styles.resetBtn}>
                 <RotateCcw size={10} color="rgba(143, 135, 126, 0.5)" />
-                <ThemedText style={styles.resetText}>Change today's drop</ThemedText>
+                <ThemedText style={styles.resetText}>Change today{"'"}s drop</ThemedText>
               </Pressable>
             </View>
           )}
@@ -514,7 +513,7 @@ const styles = StyleSheet.create({
   dropBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
   },
   resultsSection: {
     paddingHorizontal: 24,

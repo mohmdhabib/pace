@@ -218,7 +218,7 @@ export default function CameraScreen() {
               </View>
               <View style={styles.frameActions}>
                 <Pressable onPress={launchCamera} style={styles.frameBtn}>
-                  <Camera size={18} color="#080807" />
+                  <Camera size={18} color="#000000" />
                   <ThemedText style={styles.frameBtnText}>Open Camera</ThemedText>
                 </Pressable>
                 <Pressable onPress={launchLibrary} style={[styles.frameBtn, styles.frameBtnSec]}>
@@ -309,10 +309,10 @@ export default function CameraScreen() {
               ]}
             >
               {uploading ? (
-                <ActivityIndicator size="small" color="#080807" />
+                <ActivityIndicator size="small" color="#000000" />
               ) : (
                 <>
-                  <Send size={16} color="#080807" style={styles.submitIcon} />
+                  <Send size={16} color="#000000" style={styles.submitIcon} />
                   <ThemedText style={styles.submitBtnText}>Post to Pace Scrapbook</ThemedText>
                 </>
               )}
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   frameBtnText: {
-    color: '#080807',
+    color: '#000000',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     marginTop: -1,
   },
   submitBtnText: {
-    color: '#080807',
+    color: '#000000',
     fontSize: 14,
     fontWeight: '700',
   },

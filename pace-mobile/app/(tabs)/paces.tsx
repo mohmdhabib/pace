@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Pressable, ScrollView, View, ActivityIndicator, RefreshControl, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, Archive, Sparkles, Layers } from 'lucide-react-native';
+import { Plus, Archive, Sparkles, Layers, UserPlus } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
-import PaceCard from '@/components/pace-card';
+import PaceCard, { CARD_WIDTH } from '@/components/pace-card';
 import { fetchPaces } from '@/lib/apis';
 
 export default function PacesScreen() {
@@ -112,8 +112,22 @@ export default function PacesScreen() {
                     }
                   ]}
                 >
-                  <Plus size={16} color="#080807" style={styles.btnIcon} />
+                  <Plus size={16} color="#000000" style={styles.btnIcon} />
                   <ThemedText style={styles.emptyBtnText}>Create Pace</ThemedText>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => router.push('/modals/join-pace' as any)}
+                  style={({ pressed }) => [
+                    styles.emptyBtn,
+                    styles.joinGhostBtn,
+                    {
+                      opacity: pressed ? 0.9 : 1
+                    }
+                  ]}
+                >
+                  <UserPlus size={16} color="#f5f1ea" style={styles.btnIcon} />
+                  <ThemedText style={[styles.emptyBtnText, styles.joinGhostBtnText]}>Join via Link</ThemedText>
                 </Pressable>
               </View>
             )}
@@ -173,7 +187,7 @@ export default function PacesScreen() {
                 }
               ]}
             >
-              <Plus size={18} color="#080807" style={styles.btnIcon} />
+              <Plus size={18} color="#000000" style={styles.btnIcon} />
               <ThemedText style={styles.floatingBtnText}>Create Pace</ThemedText>
             </Pressable>
           </View>
@@ -230,7 +244,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   cardContainer: {
-    width: 320,
+    width: CARD_WIDTH,
     marginRight: 16,
   },
   emptyCard: {
@@ -274,7 +288,7 @@ const styles = StyleSheet.create({
   emptyBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
   },
   btnIcon: {
     marginRight: 6,
@@ -326,6 +340,15 @@ const styles = StyleSheet.create({
   floatingBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
+  },
+  joinGhostBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: 10,
+  },
+  joinGhostBtnText: {
+    color: '#f5f1ea',
   },
 });

@@ -227,7 +227,7 @@ export default function ProfileScreen() {
                 ]}
               >
                 {saving ? (
-                  <ActivityIndicator size="small" color="#080807" />
+                  <ActivityIndicator size="small" color="#000000" />
                 ) : (
                   <ThemedText style={styles.saveBtnText}>Save Changes</ThemedText>
                 )}
@@ -298,7 +298,7 @@ export default function ProfileScreen() {
                 <Sparkles size={14} color="#f5f1ea" />
                 <ThemedText style={styles.recapHeading}>RECAP HISTORY</ThemedText>
               </View>
-              <ThemedText style={styles.recapText}>"{recap}"</ThemedText>
+              <ThemedText style={styles.recapText}>{"\""}{recap}{"\""}</ThemedText>
             </View>
 
             {status ? (
@@ -323,10 +323,30 @@ export default function ProfileScreen() {
                   <ThemedText style={styles.signOutText}>Sign Out</ThemedText>
                 </Pressable>
               ) : (
-                <View style={[styles.offlinePanel, { borderColor: 'rgba(255, 255, 255, 0.05)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }]}>
+                <View style={[styles.offlinePanel, { borderColor: 'rgba(255, 255, 255, 0.05)', backgroundColor: 'rgba(255, 255, 255, 0.02)', gap: 12 }]}>
                   <ThemedText style={styles.offlineText}>
                     You are currently running in Guest mode. Sign in to cloud-sync your friendship memories.
                   </ThemedText>
+                  <Pressable
+                    onPress={async () => {
+                      try {
+                        const { safeStorage } = require('@/lib/supabase');
+                        await safeStorage.setItem('pace_sandbox_bypassed', 'false');
+                      } catch {}
+                      router.replace('/(auth)/login');
+                    }}
+                    style={({ pressed }) => [
+                      styles.signOutBtn,
+                      {
+                        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                        borderColor: 'rgba(255, 255, 255, 0.08)',
+                        opacity: pressed ? 0.95 : 1,
+                        height: 40,
+                      }
+                    ]}
+                  >
+                    <ThemedText style={[styles.signOutText, { color: '#f5f1ea', fontSize: 13 }]}>Exit Sandbox Mode</ThemedText>
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -509,7 +529,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#080807',
+    borderColor: '#000000',
   },
   avatarHelpText: {
     fontSize: 11,
@@ -545,7 +565,7 @@ const styles = StyleSheet.create({
   saveBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
   },
   cancelBtn: {
     height: 50,

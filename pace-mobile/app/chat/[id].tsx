@@ -15,7 +15,8 @@ import {
   fetchPaces,
   fetchMemories,
   subscribeToMessages,
-  sendMessage
+  sendMessage,
+  fetchMessages
 } from '@/lib/apis';
 import * as mock from '@/constants/mockData';
 
@@ -57,35 +58,9 @@ export default function ChatThreadScreen() {
       setConversation(matchedConv || null);
 
       if (matchedConv) {
-        // Load messages from local mock or database
-        if (!isSupabaseConfigured || !supabase) {
-          setMessagesList(mock.mockMessages[matchedConv.id] || []);
-        } else {
-          // Live fetches are handled by subscribeToMessages or initial table fetch.
-          // Since apis.ts fetchConversations loads everything, we can populate initial messages
-          // by querying conversation messages
-          const { data, error } = await supabase
-            .from('messages')
-            .select(`
-              id, conversation_id, sender_id, type, content, media_url, created_at,
-              profiles:sender_id(display_name, avatar_url)
-            `)
-            .eq('conversation_id', matchedConv.id)
-            .order('created_at', { ascending: true });
-
-          if (!error && data) {
-            setMessagesList(data.map((msg: any) => ({
-              id: msg.id,
-              type: msg.type,
-              sender_id: msg.sender_id,
-              sender_name: msg.profiles?.display_name || 'Friend',
-              sender_avatar: msg.profiles?.avatar_url,
-              content: msg.content,
-              media_url: msg.media_url,
-              created_at: msg.created_at
-            })));
-          }
-        }
+        // Load messages (handles database or offline mock data automatically)
+        const msgs = await fetchMessages(matchedConv.id);
+        setMessagesList(msgs || []);
 
         // Pre-fetch attaching lists
         const pData = await fetchPaces();
@@ -111,9 +86,10 @@ export default function ChatThreadScreen() {
     if (isSupabaseConfigured && supabase && convId) {
       // Connect real-time socket
       const unsubscribe = subscribeToMessages(convId, (newMsg: any) => {
+        if (!newMsg) return;
         setMessagesList((prev) => {
           // Avoid duplicating inserts
-          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          if (prev.some((m) => m && m.id === newMsg.id)) return prev;
           const updated = [...prev, newMsg];
           setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
           return updated;
@@ -147,12 +123,19 @@ export default function ChatThreadScreen() {
         return;
       }
 
-      await sendMessage({
+      const newMsg = await sendMessage({
         conversationId: convId,
         type: msgType,
         content: msgType === 'text' ? txt : (msgType === 'voice' ? 'Sent a voice note' : txt),
         ...extra
       });
+
+      if (newMsg) {
+        setMessagesList((prev) => {
+          if (prev.some((m) => m && m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
+      }
 
       setInputText('');
       setShowAttachments(false);
@@ -262,63 +245,66 @@ export default function ChatThreadScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {messagesList.length === 0 ? (
+            {messagesList.filter(Boolean).length === 0 ? (
               <ThemedText style={styles.emptyText}>
                 No messages yet. Send a note or attach memories below.
               </ThemedText>
             ) : (
-              messagesList.map((msg, index) => {
-                const isMe = msg.sender_id === currentUserId || msg.sender_id === 'me';
-                const prev = messagesList[index - 1];
-                const next = messagesList[index + 1];
+              (() => {
+                const filteredList = messagesList.filter(Boolean);
+                return filteredList.map((msg, index) => {
+                  const isMe = msg.sender_id === currentUserId || msg.sender_id === 'me';
+                  const prev = filteredList[index - 1];
+                  const next = filteredList[index + 1];
 
-                const firstInGroup = !prev || prev.sender_id !== msg.sender_id;
-                const lastInGroup = !next || next.sender_id !== msg.sender_id;
+                  const firstInGroup = !prev || prev.sender_id !== msg.sender_id;
+                  const lastInGroup = !next || next.sender_id !== msg.sender_id;
 
-                return (
-                  <View
-                    key={msg.id || index}
-                    style={[
-                      styles.messageRow,
-                      isMe ? styles.rowMe : styles.rowThem,
-                      firstInGroup ? styles.mtGroupFirst : styles.mtGroupInner,
-                    ]}
-                  >
-                    {/* Other user avatar columns */}
-                    {!isMe && (
-                      <View style={styles.avatarCol}>
-                        {lastInGroup ? (
-                          <Avatar src={msg.sender_avatar} name={msg.sender_name} size="sm" />
-                        ) : (
-                          <View style={styles.avatarSpacer} />
+                  return (
+                    <View
+                      key={msg.id || index}
+                      style={[
+                        styles.messageRow,
+                        isMe ? styles.rowMe : styles.rowThem,
+                        firstInGroup ? styles.mtGroupFirst : styles.mtGroupInner,
+                      ]}
+                    >
+                      {/* Other user avatar columns */}
+                      {!isMe && (
+                        <View style={styles.avatarCol}>
+                          {lastInGroup ? (
+                            <Avatar src={msg.sender_avatar} name={msg.sender_name} size="sm" />
+                          ) : (
+                            <View style={styles.avatarSpacer} />
+                          )}
+                        </View>
+                      )}
+
+                      <View style={styles.bubbleCol}>
+                        {!isMe && firstInGroup && conversation.type === 'pace_group' && (
+                          <ThemedText style={styles.senderNameLabel}>{msg.sender_name}</ThemedText>
+                        )}
+
+                        <MessageBubble message={msg} isMe={isMe} />
+
+                        {lastInGroup && (
+                          <ThemedText style={[styles.timeLabel, isMe ? styles.textAlignRight : styles.textAlignLeft]}>
+                            {new Date(msg.created_at || Date.now()).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </ThemedText>
                         )}
                       </View>
-                    )}
-
-                    <View style={styles.bubbleCol}>
-                      {!isMe && firstInGroup && conversation.type === 'pace_group' && (
-                        <ThemedText style={styles.senderNameLabel}>{msg.sender_name}</ThemedText>
-                      )}
-
-                      <MessageBubble message={msg} isMe={isMe} />
-
-                      {lastInGroup && (
-                        <ThemedText style={[styles.timeLabel, isMe ? styles.textAlignRight : styles.textAlignLeft]}>
-                          {new Date(msg.created_at || Date.now()).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </ThemedText>
-                      )}
                     </View>
-                  </View>
-                );
-              })
+                  );
+                });
+              })()
             )}
           </ScrollView>
 
           {/* Composer Box */}
-          <View style={[styles.composerContainer, { borderTopColor: 'rgba(255, 255, 255, 0.05)', backgroundColor: 'rgba(8, 8, 7, 0.95)' }]}>
+          <View style={[styles.composerContainer, { borderTopColor: 'rgba(255, 255, 255, 0.05)', backgroundColor: 'rgba(0, 0, 0, 0.95)' }]}>
             <View style={styles.composerRow}>
               {/* Attachment link trigger */}
               <Pressable
@@ -350,7 +336,7 @@ export default function ChatThreadScreen() {
                   disabled={!inputText.trim()}
                   style={[styles.sendSubmitBtn, { opacity: inputText.trim() ? 1 : 0.4 }]}
                 >
-                  <Send size={14} color="#080807" />
+                  <Send size={14} color="#000000" />
                 </Pressable>
               </View>
             </View>
@@ -408,7 +394,7 @@ export default function ChatThreadScreen() {
                       )}
                       <View style={styles.pickerCardInfo}>
                         <ThemedText style={styles.pickerCardCaption} numberOfLines={1}>
-                          "{mem.caption}"
+                          {"\""}{mem.caption}{"\""}
                         </ThemedText>
                         <ThemedText style={styles.pickerCardAuthor}>
                           {mem.author} • {mem.date}
@@ -649,7 +635,7 @@ const styles = StyleSheet.create({
   },
   pickerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8, 8, 7, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'flex-end',
     zIndex: 999,
   },

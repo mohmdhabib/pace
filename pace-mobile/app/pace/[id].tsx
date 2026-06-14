@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Pressable, ScrollView, View, Image, ActivityIndicator, RefreshControl, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Camera, Settings, Users, Lock, Sparkles, ImagePlus, Play, Bot } from 'lucide-react-native';
+import { ChevronLeft, Camera, Settings, Users, ImagePlus, Bot, UserPlus } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -129,16 +129,17 @@ export default function PaceTimelineScreen() {
               </Pressable>
 
               <Pressable
-                onPress={() => router.push('/modals/create-pace' as any)} // For settings triggers
+                onPress={() => router.push({ pathname: '/modals/edit-pace', params: { paceId: pace.id } } as any)} // For settings triggers
                 style={({ pressed }) => [styles.navCircleBtn, { opacity: pressed ? 0.8 : 1 }]}
               >
                 <Settings size={16} color="#f5f1ea" />
               </Pressable>
 
               <Pressable
+                onPress={() => router.push({ pathname: '/modals/invite-friends', params: { paceId: pace.id } } as any)}
                 style={({ pressed }) => [styles.navCircleBtn, { opacity: pressed ? 0.8 : 1 }]}
               >
-                <Lock size={16} color="#f5f1ea" />
+                <UserPlus size={16} color="#f5f1ea" />
               </Pressable>
             </View>
           </SafeAreaView>
@@ -193,7 +194,7 @@ export default function PaceTimelineScreen() {
                   }
                 ]}
               >
-                <ImagePlus size={14} color="#080807" style={styles.btnIcon} />
+                <ImagePlus size={14} color="#000000" style={styles.btnIcon} />
                 <ThemedText style={styles.emptyAddBtnText}>Add Memory</ThemedText>
               </Pressable>
             </View>
@@ -218,29 +219,47 @@ export default function PaceTimelineScreen() {
                       <ThemedText style={styles.memoryTime}>{mem.time}</ThemedText>
                     </View>
 
-                    {/* Polaroid body */}
-                    <View style={[styles.polaroidCard, { backgroundColor: '#f4eee3' }]}>
-                      {mem.type === 'photo' && (
-                        <Image source={{ uri: mem.image }} style={styles.polaroidPhoto} />
-                      )}
+                    {/* Polaroid / Quote Body */}
+                    {mem.type === 'text' ? (
+                      (() => {
+                        const quoteMood = (mem.mood || 'soft') as keyof typeof themeByMood;
+                        const quoteColors = themeByMood[quoteMood] || themeByMood.soft;
+                        return (
+                          <View style={[
+                            styles.quoteCard,
+                            {
+                              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                              borderColor: 'rgba(255, 255, 255, 0.08)',
+                              borderWidth: 1,
+                            }
+                          ]}>
+                            {/* Layer secondary overlay colors to simulate gradient depth */}
+                            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: quoteColors[0], opacity: 0.8, borderRadius: 24 }]} />
+                            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: quoteColors[1], opacity: 0.6, borderRadius: 24 }]} />
+                            
+                            <ThemedText style={styles.quoteTextLarge}>
+                              {"\""}{mem.caption}{"\""}
+                            </ThemedText>
+                          </View>
+                        );
+                      })()
+                    ) : (
+                      <View style={[styles.polaroidCard, { backgroundColor: '#f4eee3' }]}>
+                        {mem.type === 'photo' && (
+                          <Image source={{ uri: mem.image }} style={styles.polaroidPhoto} />
+                        )}
 
-                      {mem.type === 'voice' && (
-                        <View style={styles.audioWrapper}>
-                          <VoicePlayer url={mem.mediaUrl} />
-                        </View>
-                      )}
+                        {mem.type === 'voice' && (
+                          <View style={styles.audioWrapper}>
+                            <VoicePlayer url={mem.mediaUrl} />
+                          </View>
+                        )}
 
-                      {mem.type === 'text' && (
-                        <View style={styles.textQuoteBox}>
-                          <ThemedText style={styles.quoteText}>"{mem.caption}"</ThemedText>
-                        </View>
-                      )}
-
-                      {/* Caption for files */}
-                      {mem.type !== 'text' && mem.caption ? (
-                        <ThemedText style={styles.polaroidCaption}>{mem.caption}</ThemedText>
-                      ) : null}
-                    </View>
+                        {mem.caption ? (
+                          <ThemedText style={styles.polaroidCaption}>{mem.caption}</ThemedText>
+                        ) : null}
+                      </View>
+                    )}
 
                     {/* Reactions Pill box */}
                     <View style={styles.reactionsBox}>
@@ -294,7 +313,7 @@ export default function PaceTimelineScreen() {
               }
             ]}
           >
-            <ImagePlus size={16} color="#080807" style={styles.btnIcon} />
+            <ImagePlus size={16} color="#000000" style={styles.btnIcon} />
             <ThemedText style={styles.floatingBtnText}>Add Memory</ThemedText>
           </Pressable>
         </View>
@@ -333,7 +352,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 160,
-    backgroundColor: 'rgba(8, 8, 7, 0.9)', // simulated bottom dark blur gradient
+    backgroundColor: 'rgba(0, 0, 0, 0.9)', // simulated bottom dark blur gradient
   },
   navRow: {
     position: 'absolute',
@@ -348,7 +367,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(8, 8, 7, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
@@ -454,7 +473,7 @@ const styles = StyleSheet.create({
   emptyAddBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
   },
   btnIcon: {
     marginRight: 6,
@@ -496,6 +515,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 3,
+  },
+  quoteCard: {
+    borderRadius: 24,
+    padding: 24,
+    minHeight: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  quoteTextLarge: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#f5f1ea',
+    textAlign: 'center',
+    lineHeight: 26,
+    zIndex: 10,
   },
   polaroidPhoto: {
     width: '100%',
@@ -586,7 +627,7 @@ const styles = StyleSheet.create({
   floatingBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
   },
   errorText: {
     fontSize: 16,

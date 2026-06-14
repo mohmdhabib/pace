@@ -71,20 +71,20 @@ export default function ChatsScreen() {
           <Avatar src={chat.avatar} name={chat.title} online={chat.online} size="md" />
 
           {/* Details */}
-          <div style={styles.chatDetails}>
-            <div style={styles.chatMetaHeader}>
+          <View style={styles.chatDetails}>
+            <View style={styles.chatMetaHeader}>
               <ThemedText style={styles.chatTitle} numberOfLines={1}>
                 {chat.title}
               </ThemedText>
               <ThemedText style={styles.chatTimestamp}>{chat.timestamp}</ThemedText>
-            </div>
+            </View>
             
             <ThemedText style={styles.chatLastMessage} numberOfLines={1}>
               {chat.lastMessage}
             </ThemedText>
             
             <ThemedText style={styles.chatStats}>{chat.stats}</ThemedText>
-          </div>
+          </View>
         </View>
 
         {/* Action / Badges */}
@@ -163,7 +163,7 @@ export default function ChatsScreen() {
                   }
                 ]}
               >
-                <Layers size={14} color="#080807" style={styles.btnIcon} />
+                <Layers size={14} color="#000000" style={styles.btnIcon} />
                 <ThemedText style={styles.emptyPrimaryBtnText}>Create a Pace</ThemedText>
               </Pressable>
 
@@ -230,7 +230,7 @@ export default function ChatsScreen() {
                 }
               ]}
             >
-              <MessageSquarePlus size={16} color="#080807" style={styles.btnIcon} />
+              <MessageSquarePlus size={16} color="#000000" style={styles.btnIcon} />
               <ThemedText style={styles.floatingBtnText}>New Chat</ThemedText>
             </Pressable>
           </View>
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   emptyPrimaryBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
   },
   emptySecondaryBtn: {
     width: '100%',
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   unreadBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#080807',
+    color: '#000000',
   },
   thumbImage: {
     width: 36,
@@ -531,6 +531,6 @@ const styles = StyleSheet.create({
   floatingBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
   },
 });

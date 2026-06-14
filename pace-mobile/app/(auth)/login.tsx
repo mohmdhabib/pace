@@ -103,7 +103,11 @@ export default function OnboardingScreen() {
     }
   }
 
-  const bypassOnboarding = () => {
+  const bypassOnboarding = async () => {
+    try {
+      const { safeStorage } = require('@/lib/supabase');
+      await safeStorage.setItem('pace_sandbox_bypassed', 'true');
+    } catch {}
     router.replace('/(tabs)');
   };
 
@@ -188,7 +192,7 @@ export default function OnboardingScreen() {
                 <View style={styles.authCardHeader}>
                   <ThemedText style={styles.authCardTitle}>Welcome to Pace</ThemedText>
                   <ThemedText style={styles.authCardSubtitle}>
-                    Sign in privately to protect your era's memory box.
+                    Sign in privately to protect your era{"'"}s memory box.
                   </ThemedText>
                 </View>
 
@@ -348,7 +352,7 @@ const styles = StyleSheet.create({
   },
   blurGradientOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(8, 8, 7, 0.75)', // pace-black tint
+    backgroundColor: 'rgba(0, 0, 0, 0.75)', // pace-black tint
   },
   container: {
     flex: 1,

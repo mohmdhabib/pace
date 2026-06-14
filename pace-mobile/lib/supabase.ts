@@ -1,6 +1,36 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import 'react-native-url-polyfill/auto';
+
+// Custom SSR-safe storage wrapper to prevent ReferenceError: window is not defined during compile time
+export const safeStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined') return null;
+      return window.localStorage.getItem(key);
+    }
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    return AsyncStorage.getItem(key);
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined') return;
+      window.localStorage.setItem(key, value);
+      return;
+    }
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    await AsyncStorage.setItem(key, value);
+  },
+  removeItem: async (key: string): Promise<void> => {
+    if (Platform.OS === 'web') {
+      if (typeof window === 'undefined') return;
+      window.localStorage.removeItem(key);
+      return;
+    }
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    await AsyncStorage.removeItem(key);
+  }
+};
 
 // --- backend ENVIRONMENT KEYS ---
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -11,7 +41,7 @@ export const supabase =
   supabaseUrl && supabasePublishableKey
     ? createClient(supabaseUrl, supabasePublishableKey, {
         auth: {
-          storage: AsyncStorage,
+          storage: safeStorage,
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: false, // Disables web-specific URL check for mobile native redirects

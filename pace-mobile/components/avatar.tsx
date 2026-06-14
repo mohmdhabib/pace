@@ -116,6 +116,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: '#22c55e', // green-500
     borderWidth: 2,
-    borderColor: '#080807', // pace-black matching background
+    borderColor: '#000000', // pace-black matching background
   },
 });

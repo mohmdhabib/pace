@@ -78,7 +78,7 @@ export default function MessageBubble({ message, isMe }: MessageBubbleProps) {
           </View>
         )}
         <View style={styles.cardBody}>
-          <ThemedText style={styles.cardCaption}>"{reference_memory.caption}"</ThemedText>
+          <ThemedText style={styles.cardCaption}>{"\""}{reference_memory.caption}{"\""}</ThemedText>
           
           <View style={[styles.cardMetaRow, { borderTopColor: 'rgba(255, 255, 255, 0.05)' }]}>
             <View style={styles.cardMetaItem}>
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   cardImageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8, 8, 7, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
   },
   cardBody: {
     padding: 14,

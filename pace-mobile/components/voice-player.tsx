@@ -91,9 +91,9 @@ export default function VoicePlayer({ url }: VoicePlayerProps) {
         {loading ? (
           <ActivityIndicator size="small" color="#f5f1ea" />
         ) : isPlaying ? (
-          <Pause size={16} color="#080807" fill="#080807" />
+          <Pause size={16} color="#000000" fill="#000000" />
         ) : (
-          <Play size={16} color="#080807" fill="#080807" />
+          <Play size={16} color="#000000" fill="#000000" />
         )}
       </Pressable>
 

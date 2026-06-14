@@ -200,7 +200,7 @@ export default function CreatePaceModal() {
           <View style={styles.mainCoverDisplay}>
             <Image source={{ uri: selectedCover }} style={styles.mainCoverImage} />
             <Pressable onPress={handlePickCustomCover} style={styles.customCoverBtn}>
-              <ImageIcon size={14} color="#080807" />
+              <ImageIcon size={14} color="#000000" />
               <ThemedText style={styles.customCoverBtnText}>Upload Custom</ThemedText>
             </Pressable>
           </View>
@@ -221,7 +221,7 @@ export default function CreatePaceModal() {
                   <Image source={{ uri: coverUrl }} style={[styles.coverThumbnail, isSelected && styles.coverThumbnailSelected]} />
                   {isSelected && (
                     <View style={styles.coverSelectedCheck}>
-                      <Check size={12} color="#080807" />
+                      <Check size={12} color="#000000" />
                     </View>
                   )}
                 </Pressable>
@@ -259,7 +259,7 @@ export default function CreatePaceModal() {
                     {friend.name}
                   </ThemedText>
                   <View style={[styles.checkCircle, isSelected && styles.checkCircleActive]}>
-                    {isSelected && <Check size={10} color="#080807" />}
+                    {isSelected && <Check size={10} color="#000000" />}
                   </View>
                 </Pressable>
               );
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   createBtnText: {
-    color: '#080807',
+    color: '#000000',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   customCoverBtnText: {
-    color: '#080807',
+    color: '#000000',
     fontSize: 11,
     fontWeight: '700',
   },

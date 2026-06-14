@@ -176,6 +176,27 @@ export default function HomeScreen() {
                 </Pressable>
 
                 <Pressable
+                  onPress={() => router.push('/modals/join-pace' as any)}
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    {
+                      borderColor: 'rgba(245, 241, 234, 0.15)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      opacity: pressed ? 0.9 : 1
+                    }
+                  ]}
+                >
+                  <View style={[styles.actionIconWrap, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                    <UserPlus size={18} color="#f5f1ea" />
+                  </View>
+                  <View style={styles.actionTextWrap}>
+                    <ThemedText style={styles.actionLabel}>Join via Link</ThemedText>
+                    <ThemedText style={styles.actionSub}>Enter an invite token to enter a shared Pace</ThemedText>
+                  </View>
+                  <ArrowRight size={14} color={activeColors.textSecondary} />
+                </Pressable>
+
+                <Pressable
                   onPress={() => router.push('/modals/add-memory' as any)}
                   style={({ pressed }) => [
                     styles.actionBtn,
@@ -225,7 +246,7 @@ export default function HomeScreen() {
                       {featuredMemory.author} • {featuredMemory.date}
                     </ThemedText>
                     <ThemedText style={styles.featuredCaption}>
-                      "{featuredMemory.caption}"
+                      {"\""}{featuredMemory.caption}{"\""}
                     </ThemedText>
                     <View style={styles.featuredFooter}>
                       <View style={[styles.moodPill, { backgroundColor: activeColors.backgroundSelected }]}>
@@ -233,7 +254,7 @@ export default function HomeScreen() {
                       </View>
                       {featuredMemory.type === 'voice' && (
                         <Pressable style={styles.listenBtn}>
-                          <Play size={10} color="#080807" style={styles.playIcon} />
+                          <Play size={10} color="#000000" style={styles.playIcon} />
                           <ThemedText style={styles.listenBtnText}>Listen</ThemedText>
                         </Pressable>
                       )}
@@ -565,7 +586,7 @@ const styles = StyleSheet.create({
   listenBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#080807',
+    color: '#000000',
   },
   connectionsSection: {
     gap: 12,
@@ -635,7 +656,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 10,
-    backgroundColor: 'rgba(8, 8, 7, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
   photoCaption: {
     fontSize: 11,

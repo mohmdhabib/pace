@@ -1,12 +1,21 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, safeStorage } from './supabase';
 import * as mock from '../constants/mockData';
 
 // Helper checking if an ID is a live UUID from Supabase or static mock
+async function checkIsSandbox(): Promise<boolean> {
+  try {
+    const bypass = await safeStorage.getItem('pace_sandbox_bypassed');
+    return bypass === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export function isLiveId(id: string): boolean {
   if (!id) return false;
-  // Live Supabase UUIDs contain hyphens and aren't mock tags
-  return id.includes('-') && !id.startsWith('prototype-') && !id.startsWith('conv_') && !id.startsWith('user_');
+  // Live Supabase UUIDs match standard RFC 4122 UUID format (e.g. 123e4567-e89b-12d3-a456-426614174000)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
 }
 
 // Visual theme configurations mapping to color arrays for background cards
@@ -167,7 +176,23 @@ export async function ensureProfile(user: any) {
 }
 
 export async function fetchPaces() {
-  if (!isSupabaseConfigured || !supabase) return mock.paces;
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || isSandbox) {
+    try {
+      const local = await safeStorage.getItem('pace_local_paces');
+      if (local) {
+        const parsed = JSON.parse(local);
+        const merged = [...parsed];
+        mock.paces.forEach((p) => {
+          if (!merged.some((m) => m.id === p.id)) {
+            merged.push(p);
+          }
+        });
+        return merged;
+      }
+    } catch {}
+    return mock.paces;
+  }
   const { data, error } = await supabase
     .from('paces')
     .select('*, pace_members(user_id, role, profiles(id, display_name, avatar_url)), memories(caption, type, media_url, created_at)')
@@ -180,7 +205,17 @@ export async function fetchPaces() {
 }
 
 export async function fetchMemories(paceId: string) {
-  if (!isSupabaseConfigured || !supabase || !isLiveId(paceId)) return mock.memories;
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || !isLiveId(paceId) || isSandbox) {
+    try {
+      const local = await safeStorage.getItem(`pace_local_memories_${paceId}`);
+      if (local) {
+        return JSON.parse(local);
+      }
+    } catch {}
+    if (paceId === 'chennai') return mock.memories;
+    return [];
+  }
   const { data, error } = await supabase
     .from('memories')
     .select('*, profiles(display_name, avatar_url)')
@@ -192,7 +227,8 @@ export async function fetchMemories(paceId: string) {
 }
 
 export async function createPace({ title, description, mood, coverUrl }: any) {
-  if (!isSupabaseConfigured || !supabase) {
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || isSandbox) {
     const newPace = {
       id: `local-pace-${Date.now()}`,
       title,
@@ -206,6 +242,14 @@ export async function createPace({ title, description, mood, coverUrl }: any) {
       collage: [coverUrl || mock.covers[0]],
       archivedAt: null
     };
+    try {
+      const local = await safeStorage.getItem('pace_local_paces');
+      const pacesList = local ? JSON.parse(local) : [];
+      pacesList.unshift(newPace);
+      await safeStorage.setItem('pace_local_paces', JSON.stringify(pacesList));
+    } catch (e) {
+      console.warn("Failed to persist local pace:", e);
+    }
     return newPace;
   }
 
@@ -213,13 +257,19 @@ export async function createPace({ title, description, mood, coverUrl }: any) {
   const user = sessionData?.session?.user;
   if (!user?.id) throw new Error('You must be signed in to create a Pace.');
 
+  // Handle local image URIs by setting default first and uploading later
+  const isCustomCover = coverUrl && (coverUrl.startsWith('file://') || coverUrl.startsWith('content://') || !coverUrl.startsWith('http'));
+  const coverToSaveInitially = isCustomCover ? mock.covers[0] : (coverUrl || mock.covers[0]);
+
   const { data, error } = await supabase.rpc('create_pace', {
     title_arg: title,
     description_arg: description || null,
     mood_arg: mood,
-    cover_url_arg: coverUrl || null,
+    cover_url_arg: coverToSaveInitially,
     color_theme_arg: 'from-[#d2c5b1]/25 via-[#62594d]/10 to-[#8f6b67]/25'
   });
+
+  let livePace: any;
 
   if (error) {
     await ensureProfile(user);
@@ -230,21 +280,50 @@ export async function createPace({ title, description, mood, coverUrl }: any) {
         title,
         description: description || null,
         mood,
-        cover_url: coverUrl || null,
+        cover_url: coverToSaveInitially,
         color_theme: 'from-[#d2c5b1]/25 via-[#62594d]/10 to-[#8f6b67]/25'
       })
       .select()
       .single();
 
     if (fallbackError) throw fallbackError;
-    return normalizePace({ ...fallbackData, pace_members: [], memories: [] });
+    livePace = normalizePace({ ...fallbackData, pace_members: [], memories: [] });
+  } else {
+    livePace = normalizePace({ ...data, pace_members: [], memories: [] });
   }
 
-  return normalizePace({ ...data, pace_members: [], memories: [] });
+  // Upload custom cover file if needed
+  if (isCustomCover) {
+    try {
+      const fileExtension = coverUrl.split('.').pop() || 'jpg';
+      const uploadedUrl = await uploadMemoryFile({
+        paceId: livePace.id,
+        uri: coverUrl,
+        fileExtension
+      });
+      if (uploadedUrl) {
+        await supabase
+          .from('paces')
+          .update({ cover_url: uploadedUrl })
+          .eq('id', livePace.id);
+        livePace.cover = uploadedUrl;
+        if (Array.isArray(livePace.collage) && livePace.collage.length > 0) {
+          livePace.collage[0] = uploadedUrl;
+        } else {
+          livePace.collage = [uploadedUrl];
+        }
+      }
+    } catch (uploadError) {
+      console.warn("Failed to upload custom pace cover:", uploadError);
+    }
+  }
+
+  return livePace;
 }
 
 export async function createMemory(payload: any) {
-  if (!isSupabaseConfigured || !supabase || !isLiveId(payload.paceId)) {
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || !isLiveId(payload.paceId) || isSandbox) {
     const newMemory = {
       id: `local-mem-${Date.now()}`,
       type: payload.type,
@@ -258,14 +337,42 @@ export async function createMemory(payload: any) {
       lockedUntil: payload.lockedUntil || null,
       location: payload.locationName
     };
+    try {
+      const local = await safeStorage.getItem(`pace_local_memories_${payload.paceId}`);
+      const memoriesList = local ? JSON.parse(local) : (payload.paceId === 'chennai' ? [...mock.memories] : []);
+      memoriesList.unshift(newMemory);
+      await safeStorage.setItem(`pace_local_memories_${payload.paceId}`, JSON.stringify(memoriesList));
+
+      const pacesLocal = await safeStorage.getItem('pace_local_paces');
+      const pacesList = pacesLocal ? JSON.parse(pacesLocal) : [];
+      const index = pacesList.findIndex((p: any) => p.id === payload.paceId);
+      if (index !== -1) {
+        pacesList[index].last = 'Just now';
+        pacesList[index].snippet = payload.caption || 'Added a memory';
+        if (payload.type === 'photo' && payload.mediaUrl) {
+          pacesList[index].collage = [pacesList[index].cover, payload.mediaUrl, ...pacesList[index].collage.slice(1)].slice(0, 4);
+        }
+        await safeStorage.setItem('pace_local_paces', JSON.stringify(pacesList));
+      }
+    } catch (e) {
+      console.warn("Failed to persist local memory:", e);
+    }
     return newMemory;
   }
+
+  // Resolve authorId if missing
+  let authorId = payload.authorId;
+  if (!authorId) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    authorId = sessionData?.session?.user?.id;
+  }
+  if (!authorId) throw new Error('You must be signed in to add memories.');
 
   const { data, error } = await supabase
     .from('memories')
     .insert({
       pace_id: payload.paceId,
-      author_id: payload.authorId,
+      author_id: authorId,
       type: payload.type,
       caption: payload.caption,
       mood: payload.mood,
@@ -302,7 +409,22 @@ export function subscribeToMemories(paceId: string, onMemory: (mem: any) => void
 }
 
 export async function updatePace(paceId: string, updates: any) {
-  if (!isSupabaseConfigured || !supabase || !isLiveId(paceId)) return null;
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || !isLiveId(paceId) || isSandbox) {
+    try {
+      const local = await safeStorage.getItem('pace_local_paces');
+      if (local) {
+        const pacesList = JSON.parse(local);
+        const index = pacesList.findIndex((p: any) => p.id === paceId);
+        if (index !== -1) {
+          pacesList[index] = { ...pacesList[index], ...updates };
+          await safeStorage.setItem('pace_local_paces', JSON.stringify(pacesList));
+          return pacesList[index];
+        }
+      }
+    } catch {}
+    return null;
+  }
   const { data, error } = await supabase
     .from('paces')
     .update(updates)
@@ -315,12 +437,42 @@ export async function updatePace(paceId: string, updates: any) {
 }
 
 export async function archivePace(paceId: string) {
-  if (!isSupabaseConfigured || !supabase || !isLiveId(paceId)) return null;
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || !isLiveId(paceId) || isSandbox) {
+    try {
+      const local = await safeStorage.getItem('pace_local_paces');
+      if (local) {
+        const pacesList = JSON.parse(local);
+        const index = pacesList.findIndex((p: any) => p.id === paceId);
+        if (index !== -1) {
+          pacesList[index].archivedAt = new Date().toISOString();
+          await safeStorage.setItem('pace_local_paces', JSON.stringify(pacesList));
+          return pacesList[index];
+        }
+      }
+    } catch {}
+    return null;
+  }
   return updatePace(paceId, { archived_at: new Date().toISOString() });
 }
 
 export async function unarchivePace(paceId: string) {
-  if (!isSupabaseConfigured || !supabase || !isLiveId(paceId)) return null;
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || !isLiveId(paceId) || isSandbox) {
+    try {
+      const local = await safeStorage.getItem('pace_local_paces');
+      if (local) {
+        const pacesList = JSON.parse(local);
+        const index = pacesList.findIndex((p: any) => p.id === paceId);
+        if (index !== -1) {
+          pacesList[index].archivedAt = null;
+          await safeStorage.setItem('pace_local_paces', JSON.stringify(pacesList));
+          return pacesList[index];
+        }
+      }
+    } catch {}
+    return null;
+  }
   return updatePace(paceId, { archived_at: null });
 }
 
@@ -416,13 +568,21 @@ export async function createInvite({ paceId, invitedBy, email }: any) {
     return {
       token: `prototype-invite-${Date.now()}`,
       expiresAt: new Date(Date.now() + 86400000).toISOString(),
-      url: `pace://invite?token=prototype-invite-${Date.now()}`
+      url: `https://thepace.space/?invite=prototype-invite-${Date.now()}`
     };
   }
 
+  // Resolve invitedBy if missing
+  let finalInvitedBy = invitedBy;
+  if (!finalInvitedBy) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    finalInvitedBy = sessionData?.session?.user?.id;
+  }
+  if (!finalInvitedBy) throw new Error('You must be signed in to create an invite.');
+
   const { data, error } = await supabase
     .from('pace_invites')
-    .insert({ pace_id: paceId, invited_by: invitedBy, email: email || null })
+    .insert({ pace_id: paceId, invited_by: finalInvitedBy, email: email || null })
     .select('token, expires_at')
     .single();
 
@@ -430,14 +590,15 @@ export async function createInvite({ paceId, invitedBy, email }: any) {
   return {
     token: data.token,
     expiresAt: data.expires_at,
-    url: `pace://invite?token=${data.token}`
+    url: `https://thepace.space/?invite=${data.token}`
   };
 }
 
 // --- CHAT API SERVICES ---
 
 export async function fetchConversations() {
-  if (!isSupabaseConfigured || !supabase) return mock.mockConversations;
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || isSandbox) return mock.mockConversations;
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -763,7 +924,8 @@ export async function joinPaceGroupChat(paceId: string) {
 // --- RELATIONSHIP API SERVICES ---
 
 export async function fetchRelationship(targetUserId: string) {
-  if (!isSupabaseConfigured || !supabase || !isLiveId(targetUserId)) {
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || !isLiveId(targetUserId) || isSandbox) {
     return mock.mockRelationshipStats[targetUserId] || mock.mockRelationshipStats.user_arjun;
   }
 
@@ -892,7 +1054,8 @@ function emptyRelationship(friendName: string, avatarUrl: string | null = null) 
 }
 
 export async function fetchCloseConnections() {
-  if (!isSupabaseConfigured || !supabase) {
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || isSandbox) {
     return Object.keys(mock.mockRelationshipStats).map((key) => ({
       id: key,
       name: mock.mockRelationshipStats[key].name,
@@ -996,7 +1159,7 @@ function todayStr() {
 export async function getMyTodayDrop() {
   const TODAY = todayStr();
   const LS_KEY = `pace_pulse_${TODAY}`;
-  const cached = await AsyncStorage.getItem(LS_KEY);
+  const cached = await safeStorage.getItem(LS_KEY);
   if (cached) return JSON.parse(cached);
 
   if (!isSupabaseConfigured || !supabase) return null;
@@ -1012,7 +1175,7 @@ export async function getMyTodayDrop() {
     .maybeSingle();
 
   if (data) {
-    await AsyncStorage.setItem(LS_KEY, JSON.stringify(data));
+    await safeStorage.setItem(LS_KEY, JSON.stringify(data));
   }
   return data || null;
 }
@@ -1022,7 +1185,7 @@ export async function dropTodaysPulse(emoji: string, note = '') {
   const LS_KEY = `pace_pulse_${TODAY}`;
   const drop = { emoji, note, dropped_at: new Date().toISOString() };
 
-  await AsyncStorage.setItem(LS_KEY, JSON.stringify(drop));
+  await safeStorage.setItem(LS_KEY, JSON.stringify(drop));
 
   if (!isSupabaseConfigured || !supabase) return drop;
 
@@ -1122,15 +1285,42 @@ export async function fetchPulseHistory() {
 // --- FILE STORAGE UPLOAD ---
 
 export async function uploadMemoryFile({ paceId, uri, fileExtension = 'jpg' }: any) {
-  if (!isSupabaseConfigured || !supabase || !uri) return null;
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || !uri || isSandbox) return null;
   const filePath = `${paceId}/${Date.now()}-upload.${fileExtension}`;
 
   try {
-    // Standard React Native fetch-blob method to extract file binary for storage
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    // Standard React Native XHR method to extract file binary for storage (resolves 'Network request failed' on mobile file:// paths)
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function () {
+        resolve(xhr.response);
+      };
+      xhr.onerror = function (e) {
+        console.error('XHR local file fetch failed:', e);
+        reject(new TypeError("Local file read failed"));
+      };
+      xhr.responseType = "blob";
+      xhr.open("GET", uri, true);
+      xhr.send(null);
+    });
 
-    const { error } = await supabase.storage.from('pace-media').upload(filePath, blob, {
+    // Convert Blob to ArrayBuffer to bypass React Native fetch binary upload bug
+    const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(reader.result as ArrayBuffer);
+      };
+      reader.onerror = (e) => {
+        reject(e);
+      };
+      reader.readAsArrayBuffer(blob);
+    });
+
+    const mimeType = fileExtension === 'm4a' ? 'audio/m4a' : (fileExtension === 'jpg' ? 'image/jpeg' : `image/${fileExtension}`);
+
+    const { error } = await supabase.storage.from('pace-media').upload(filePath, arrayBuffer, {
+      contentType: mimeType,
       cacheControl: '3600',
       upsert: false
     });
@@ -1167,7 +1357,8 @@ export async function updateProfile({ displayName, avatarUrl }: any) {
 }
 
 export async function fetchRecentMemoriesAcrossPaces() {
-  if (!isSupabaseConfigured || !supabase) return mock.memories;
+  const isSandbox = await checkIsSandbox();
+  if (!isSupabaseConfigured || !supabase || isSandbox) return mock.memories;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 

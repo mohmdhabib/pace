@@ -100,10 +100,10 @@ export default function RelationshipProfileScreen() {
           {/* Overlapping Avatars Hero */}
           <View style={styles.heroSection}>
             <View style={styles.overlappingAvatars}>
-              <View style={[styles.avatarFrameWrap, { borderColor: '#080807', zIndex: 2 }]}>
+              <View style={[styles.avatarFrameWrap, { borderColor: '#000000', zIndex: 2 }]}>
                 <Avatar src={null} name="Me" size="xl" />
               </View>
-              <View style={[styles.avatarFrameWrap, { borderColor: '#080807', zIndex: 1, marginLeft: -24 }]}>
+              <View style={[styles.avatarFrameWrap, { borderColor: '#000000', zIndex: 1, marginLeft: -24 }]}>
                 <Avatar src={profileData.avatarUrl} name={profileData.name} size="xl" />
               </View>
             </View>
@@ -222,7 +222,7 @@ export default function RelationshipProfileScreen() {
                         },
                       ]}
                     >
-                      <ThemedText style={[styles.filterBtnText, { color: active ? '#080807' : '#8f877e' }]}>
+                      <ThemedText style={[styles.filterBtnText, { color: active ? '#000000' : '#8f877e' }]}>
                         {filter}s
                       </ThemedText>
                     </Pressable>
@@ -250,7 +250,7 @@ export default function RelationshipProfileScreen() {
                     )}
                     <View style={styles.galleryCardInfo}>
                       <ThemedText style={styles.galleryCardCaption} numberOfLines={2}>
-                        "{mem.caption}"
+                        {"\""}{mem.caption}{"\""}
                       </ThemedText>
                       <View style={styles.galleryCardFooter}>
                         <ThemedText style={styles.galleryCardAuthor} numberOfLines={1}>{mem.author}</ThemedText>
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#f5f1ea',
     borderWidth: 1.5,
-    borderColor: '#080807',
+    borderColor: '#000000',
   },
   nodeCard: {
     borderWidth: 1,
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   },
   paceOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(8, 8, 7, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
   paceTextWrap: {
     position: 'absolute',

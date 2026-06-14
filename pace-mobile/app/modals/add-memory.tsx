@@ -309,9 +309,9 @@ export default function AddMemoryModal() {
         <ThemedText style={styles.headerTitle}>Add Scrapbook Memory</ThemedText>
         <Pressable onPress={handleSubmit} disabled={submitting} style={styles.submitBtn}>
           {submitting ? (
-            <ActivityIndicator size="small" color="#080807" />
+            <ActivityIndicator size="small" color="#000000" />
           ) : (
-            <Send size={14} color="#080807" />
+            <Send size={14} color="#000000" />
           )}
         </Pressable>
       </SafeAreaView>
@@ -367,9 +367,9 @@ export default function AddMemoryModal() {
                   isSelected && styles.tabItemActive,
                 ]}
               >
-                {tab === 'text' && <Type size={16} color={isSelected ? '#080807' : '#8f877e'} />}
-                {tab === 'photo' && <ImageIcon size={16} color={isSelected ? '#080807' : '#8f877e'} />}
-                {tab === 'voice' && <Mic size={16} color={isSelected ? '#080807' : '#8f877e'} />}
+                {tab === 'text' && <Type size={16} color={isSelected ? '#000000' : '#8f877e'} />}
+                {tab === 'photo' && <ImageIcon size={16} color={isSelected ? '#000000' : '#8f877e'} />}
+                {tab === 'voice' && <Mic size={16} color={isSelected ? '#000000' : '#8f877e'} />}
                 <ThemedText style={[styles.tabText, isSelected && styles.tabTextActive]}>
                   {tab.toUpperCase()}
                 </ThemedText>
@@ -457,9 +457,9 @@ export default function AddMemoryModal() {
                   <View style={styles.playerBar}>
                     <Pressable onPress={handlePlayPausePreview} style={styles.playPreviewBtn}>
                       {isPlayingPreview ? (
-                        <Pause size={16} color="#080807" fill="#080807" />
+                        <Pause size={16} color="#000000" fill="#000000" />
                       ) : (
-                        <Play size={16} color="#080807" fill="#080807" />
+                        <Play size={16} color="#000000" fill="#000000" />
                       )}
                     </Pressable>
                     <View style={styles.playerWaveMock}>
@@ -510,7 +510,7 @@ export default function AddMemoryModal() {
                       isRecording && styles.recordBtnRecording,
                     ]}
                   >
-                    <Mic size={32} color={isRecording ? '#f5f1ea' : '#080807'} />
+                    <Mic size={32} color={isRecording ? '#f5f1ea' : '#000000'} />
                   </Pressable>
                 </View>
               )}
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   tabTextActive: {
-    color: '#080807',
+    color: '#000000',
   },
   panelContainer: {
     paddingHorizontal: 20,

@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { themeByMood } from '@/lib/apis';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+export const CARD_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 340);
 
 interface PaceCardProps {
   pace: {
@@ -153,12 +154,11 @@ export default function PaceCard({ pace, onOpen, isArchived = false }: PaceCardP
 const styles = StyleSheet.create({
   card: {
     height: 480,
-    width: SCREEN_WIDTH * 0.88,
+    width: CARD_WIDTH,
     borderRadius: 32,
     borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
-    marginRight: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 240,
-    backgroundColor: 'rgba(8, 8, 7, 0.9)', // Simulated dark gradient using opacity
+    backgroundColor: 'rgba(0, 0, 0, 0.9)', // Simulated dark gradient using opacity
   },
   polaroidStack: {
     position: 'absolute',
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     top: 16,
-    backgroundColor: 'rgba(8, 8, 7, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
     paddingVertical: 4,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#f5f1ea', // pace-pearl
     borderWidth: 1,
-    borderColor: '#080807',
+    borderColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: -6,
