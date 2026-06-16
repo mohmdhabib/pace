@@ -4,7 +4,6 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Camera,
   Layers,
   Sparkles,
   User,
@@ -12,76 +11,91 @@ import {
   Bot,
   Volume2,
   Lock,
-  MapPin,
   ChevronLeft,
-  Settings,
   HelpCircle,
   Eye,
-  EyeOff,
   Video,
   Monitor,
-  Heart,
-  ChevronRight,
   ShieldCheck,
-  Send,
-  MessageCircle,
-  Moon
+  Check,
+  Info,
+  Calendar,
+  X,
+  Compass,
+  ArrowRight,
+  Moon,
+  Camera
 } from "lucide-react";
-import { covers, paces, memories } from "../shared/constants";
 
 // ============================================================================
-// CONFIG & SCENE TIMELINE CONFIGURATION
+// TIMELINE SCENES & SETTINGS
 // ============================================================================
 const SCENES = [
-  { id: 1, name: "Scene 1: Hook Intro", start: 0, end: 4.5, label: "Brand Hook" },
-  { id: 2, name: "Scene 2: Onboarding", start: 4.5, end: 8.5, label: "Auth Flow" },
-  { id: 3, name: "Scene 3: Home Dashboard", start: 8.5, end: 13.5, label: "Your Eras" },
-  { id: 4, name: "Scene 4: Chennai Timeline", start: 13.5, end: 18.5, label: "Spaces" },
-  { id: 5, name: "Scene 5: Voice Note Wave", start: 18.5, end: 23.5, label: "Interactive" },
-  { id: 6, name: "Scene 6: Poetic AI Recap", start: 23.5, end: 28.5, label: "AI Recaps" },
-  { id: 7, name: "Scene 7: No Metrics Profile", start: 28.5, end: 32.5, label: "Zero Pressure" },
-  { id: 8, name: "Scene 8: Outro & PH CTA", start: 32.5, end: 37.0, label: "PH Launch" }
+  { id: 1, name: "Scene 1: Brand Reveal", start: 0, end: 5.5, label: "Logo Reveal" },
+  { id: 2, name: "Scene 2: Phone Authentication", start: 5.5, end: 9.5, label: "OTP Entry" },
+  { id: 3, name: "Scene 3: Library of Eras", start: 9.5, end: 14.5, label: "Home Dashboard" },
+  { id: 4, name: "Scene 4: Capture & Polaroid Drop", start: 14.5, end: 20.0, label: "Camera Shutter" },
+  { id: 5, name: "Scene 5: Voice Wave close-up", start: 20.0, end: 25.0, label: "Interactive Audio" },
+  { id: 6, name: "Scene 6: Poetic AI recap", start: 25.0, end: 30.5, label: "Nostalgic Recap" },
+  { id: 7, name: "Scene 7: Zero Social Pressure", start: 30.5, end: 34.5, label: "Zero Metrics" },
+  { id: 8, name: "Scene 8: Product Hunt Launch", start: 34.5, end: 40.0, label: "PH Outro" }
 ];
 
-const TOTAL_DURATION = 37.0; // seconds
+const TOTAL_DURATION = 40.0; // seconds
+
+// Mock audio wave visual pattern for Scene 5
+const audioWaves = [
+  { id: 1, height: 18, delay: 0.1 },
+  { id: 2, height: 26, delay: 0.15 },
+  { id: 3, height: 38, delay: 0.2 },
+  { id: 4, height: 48, delay: 0.25 },
+  { id: 5, height: 34, delay: 0.3 },
+  { id: 6, height: 22, delay: 0.35 },
+  { id: 7, height: 30, delay: 0.4 },
+  { id: 8, height: 44, delay: 0.45 },
+  { id: 9, height: 56, delay: 0.5 },
+  { id: 10, height: 60, delay: 0.55 },
+  { id: 11, height: 48, delay: 0.6 },
+  { id: 12, height: 32, delay: 0.65 },
+  { id: 13, height: 20, delay: 0.7 },
+  { id: 14, height: 28, delay: 0.75 },
+  { id: 15, height: 42, delay: 0.8 },
+  { id: 16, height: 52, delay: 0.85 },
+  { id: 17, height: 58, delay: 0.9 },
+  { id: 18, height: 46, delay: 0.95 },
+  { id: 19, height: 30, delay: 1.0 },
+  { id: 20, height: 24, delay: 1.05 },
+  { id: 21, height: 38, delay: 1.1 },
+  { id: 22, height: 48, delay: 1.15 },
+  { id: 23, height: 54, delay: 1.2 },
+  { id: 24, height: 40, delay: 1.25 },
+  { id: 25, height: 26, delay: 1.3 },
+  { id: 26, height: 18, delay: 1.35 },
+  { id: 27, height: 12, delay: 1.4 },
+  { id: 28, height: 8, delay: 1.45 }
+];
 
 export default function PromoShowcase() {
-  // --- STATE ---
+  // --- STATE CONTROLLERS ---
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [tiltAngle, setTiltAngle] = useState("isometric-left"); // flat, isometric-left, isometric-right, extreme
-  const [glowIntensity, setGlowIntensity] = useState("medium"); // none, low, medium, high
   const [showGrain, setShowGrain] = useState(true);
   const [showHUD, setShowHUD] = useState(true);
   const [capturingMode, setCapturingMode] = useState(false);
   const [captureCountdown, setCaptureCountdown] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
-  
-  // Audio waveforms mock state
-  const [audioWaves, setAudioWaves] = useState([]);
 
-  // Refs for tracking playback loop
+  // References
   const timerRef = useRef(null);
   const lastTickRef = useRef(null);
 
-  // Generate audio waves elements
-  useEffect(() => {
-    setAudioWaves(
-      Array.from({ length: 26 }, (_, i) => ({
-        id: i,
-        height: 10 + Math.random() * 55,
-        delay: i * 0.04
-      }))
-    );
-  }, []);
-
-  // Calculate current scene object
+  // Calculate current scene
   const currentScene = useMemo(() => {
     return SCENES.find(s => currentTime >= s.start && currentTime < s.end) || SCENES[SCENES.length - 1];
   }, [currentTime]);
 
-  // --- ANIMATION / TIMELINE TICK LOOP ---
+  // --- AUTOMATED TICK TIMER LOOP ---
   useEffect(() => {
     if (!isPlaying) {
       if (timerRef.current) {
@@ -105,8 +119,7 @@ export default function PromoShowcase() {
       setCurrentTime((prev) => {
         const next = prev + elapsedSec * playbackSpeed;
         if (next >= TOTAL_DURATION) {
-          // Loop around
-          return 0;
+          return 0; // loop
         }
         return next;
       });
@@ -123,7 +136,7 @@ export default function PromoShowcase() {
     };
   }, [isPlaying, playbackSpeed]);
 
-  // --- CAPTURE TRIGGER helper ---
+  // Handle countdown triggers
   const triggerCaptureStart = () => {
     setCaptureCountdown(3);
     setShowGuide(false);
@@ -131,12 +144,10 @@ export default function PromoShowcase() {
 
   useEffect(() => {
     if (captureCountdown <= 0) return;
-
     const t = setTimeout(() => {
       setCaptureCountdown((prev) => {
         const next = prev - 1;
         if (next === 0) {
-          // Start capturing
           setCurrentTime(0);
           setIsPlaying(true);
           setShowHUD(false);
@@ -145,11 +156,10 @@ export default function PromoShowcase() {
         return next;
       });
     }, 1000);
-
     return () => clearTimeout(t);
   }, [captureCountdown]);
 
-  // Keyboard controls listener (press ESC to exit capture mode)
+  // Keyboard shortcut ESC to return HUD
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
@@ -161,553 +171,795 @@ export default function PromoShowcase() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Helpers to jump to scene
   const jumpToScene = (scene) => {
     setCurrentTime(scene.start);
     setIsPlaying(true);
   };
 
-  // --- TILT ANGLE CSS MAP ---
-  const getTiltStyles = () => {
-    switch (tiltAngle) {
-      case "isometric-left":
-        return {
-          transform: "rotateX(20deg) rotateY(-20deg) rotateZ(10deg)",
-          transformStyle: "preserve-3d"
-        };
-      case "isometric-right":
-        return {
-          transform: "rotateX(20deg) rotateY(20deg) rotateZ(-10deg)",
-          transformStyle: "preserve-3d"
-        };
-      case "extreme":
-        return {
-          transform: "rotateX(40deg) rotateY(-35deg) rotateZ(20deg) scale(0.9)",
-          transformStyle: "preserve-3d"
-        };
-      case "flat":
-      default:
-        return {
-          transform: "rotateX(0deg) rotateY(0deg) rotateZ(0deg)",
-          transformStyle: "preserve-3d"
-        };
+  // ============================================================================
+  // CAMERA DIRECTION ORCHESTRATION (ZOOM, TILT, PERSPECTIVE)
+  // ============================================================================
+  const getCameraStyles = () => {
+    // Returns 3D transform properties based on the current timeline time
+    const t = currentTime;
+
+    if (t < 5.5) {
+      // Scene 1: Brand Logo Reveal
+      // Phone is placed deep back, hidden in opacity, floating
+      return {
+        transform: "translate3d(0, 80px, -300px) rotateX(25deg) rotateY(-20deg) rotateZ(5deg)",
+        opacity: 0,
+        transition: "all 1.5s cubic-bezier(0.16, 1, 0.3, 1)"
+      };
+    } else if (t < 9.5) {
+      // Scene 2: Onboarding OTP Verification (Close up, Flat)
+      // Zoomed in, straight angle to highlight digits entering
+      return {
+        transform: "translate3d(0, -10px, 120px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)",
+        opacity: 1,
+        transition: "all 1.2s cubic-bezier(0.16, 1, 0.3, 1)"
+      };
+    } else if (t < 14.5) {
+      // Scene 3: Home Dashboard (Isometric Left perspective view)
+      // Pull back camera, show context 3D
+      return {
+        transform: "translate3d(60px, 0, -20px) rotateX(18deg) rotateY(-18deg) rotateZ(8deg)",
+        opacity: 1,
+        transition: "all 1.5s cubic-bezier(0.16, 1, 0.3, 1)"
+      };
+    } else if (t < 20.0) {
+      // Scene 4: Camera viewfinder and photo flash drop (Flat zoom)
+      // Straight, slightly tilted up to watch polaroid slide down
+      return {
+        transform: "translate3d(0, 15px, 30px) rotateX(10deg) rotateY(-8deg) rotateZ(3deg)",
+        opacity: 1,
+        transition: "all 1.3s cubic-bezier(0.16, 1, 0.3, 1)"
+      };
+    } else if (t < 25.0) {
+      // Scene 5: Voice Wave close-up (Isometric Right, high zoom)
+      // Focuses directly on the voice player card
+      return {
+        transform: "translate3d(-60px, -15px, 110px) rotateX(16deg) rotateY(16deg) rotateZ(-6deg)",
+        opacity: 1,
+        transition: "all 1.3s cubic-bezier(0.16, 1, 0.3, 1)"
+      };
+    } else if (t < 30.5) {
+      // Scene 6: Poetic AI recap (Close-up, focused on top recap text)
+      return {
+        transform: "translate3d(50px, -45px, 130px) rotateX(14deg) rotateY(-14deg) rotateZ(6deg)",
+        opacity: 1,
+        transition: "all 1.4s cubic-bezier(0.16, 1, 0.3, 1)"
+      };
+    } else if (t < 34.5) {
+      // Scene 7: Zero Social metrics (Flat, clean review)
+      return {
+        transform: "translate3d(0, 0, 70px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)",
+        opacity: 1,
+        transition: "all 1.2s cubic-bezier(0.16, 1, 0.3, 1)"
+      };
+    } else {
+      // Scene 8: PH launch Outro (Phone exits right, rotates flat)
+      return {
+        transform: "translate3d(240px, 80px, -150px) rotateX(25deg) rotateY(-22deg) rotateZ(10deg)",
+        opacity: 0.3,
+        transition: "all 1.6s cubic-bezier(0.16, 1, 0.3, 1)"
+      };
     }
   };
 
-  // --- GLOW INTENSITY MAP ---
-  const getGlowStyles = () => {
-    switch (glowIntensity) {
-      case "low":
-        return "rgba(214, 198, 176, 0.05)";
-      case "high":
-        return "rgba(214, 198, 176, 0.28)";
-      case "none":
-        return "rgba(0,0,0,0)";
-      case "medium":
-      default:
-        return "rgba(214, 198, 176, 0.16)";
-    }
+  // Helper to simulate OTP digits typing in Scene 2
+  const getSimulatedOTP = () => {
+    const t = currentTime - 5.5; // offset
+    if (t < 0.8) return ["", "", "", ""];
+    if (t < 1.6) return ["8", "", "", ""];
+    if (t < 2.3) return ["8", "3", "", ""];
+    if (t < 3.0) return ["8", "3", "2", ""];
+    return ["8", "3", "2", "1"];
+  };
+
+  // Helper to determine active highlighted key on onboarding keypad
+  const getActiveKeypadKey = () => {
+    const t = currentTime - 5.5;
+    if (t >= 0.6 && t < 0.9) return 8;
+    if (t >= 1.4 && t < 1.7) return 3;
+    if (t >= 2.1 && t < 2.4) return 2;
+    if (t >= 2.8 && t < 3.1) return 1;
+    return null;
+  };
+
+  // Helper to animate typewriter caption in AI recap Scene 6
+  const getAIRecapTypewriter = () => {
+    const t = currentTime - 25.0; // offset
+    const fullText = "Kyoto in the Rain felt nostalgic and deep. The rainy day in Kyoto brought everyone together, and the midnight talks cemented the era as a core memory.";
+    if (t <= 0.5) return "";
+    const charsToShow = Math.floor((t - 0.5) * 35); // 35 chars per second
+    return fullText.slice(0, charsToShow);
   };
 
   return (
-    <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-pace-black font-sans select-none">
+    <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-[#080807] font-sans select-none text-pace-pearl">
       
-      {/* Cinematic Film Grain */}
+      {/* 1. Cinematic overlays */}
       {showGrain && <div className="grain pointer-events-none fixed inset-0 z-50 opacity-[0.08]" />}
+      <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,#080807_100%)] opacity-90 pointer-events-none" />
 
-      {/* Dynamic Background Blur Radial Orbs */}
-      <div className="pointer-events-none fixed inset-0 z-0">
-        <div 
-          className="absolute -left-10 top-1/4 h-[40rem] w-[40rem] rounded-full blur-[160px] opacity-15 transition-all duration-1000 ease-in-out"
-          style={{
-            background: currentScene.id === 1 ? "#8f6b67" :
-                        currentScene.id === 4 ? "#7d8577" :
-                        currentScene.id === 6 ? "#cfc6ba" : "#8f6b67",
-            transform: `translate(${Math.sin(currentTime) * 50}px, ${Math.cos(currentTime) * 30}px)`
+      {/* 2. Color blur orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          className="absolute h-[500px] w-[500px] rounded-full blur-[140px] opacity-15"
+          animate={{
+            x: currentScene.id === 1 ? -100 : currentScene.id === 4 ? 200 : -50,
+            y: currentScene.id === 1 ? 50 : currentScene.id === 5 ? -150 : 100,
+            background: currentScene.id === 5 ? "#8f6b67" : currentScene.id === 3 ? "#7d8577" : "#8f6b67"
           }}
+          transition={{ duration: 3, ease: "easeInOut" }}
         />
-        <div 
-          className="absolute -right-20 bottom-1/4 h-[45rem] w-[45rem] rounded-full blur-[180px] opacity-10 transition-all duration-1000 ease-in-out"
-          style={{
-            background: currentScene.id === 3 ? "#7d8577" :
-                        currentScene.id === 5 ? "#8f6b67" :
-                        currentScene.id === 8 ? "#cfc6ba" : "#7d8577",
-            transform: `translate(${Math.cos(currentTime) * -40}px, ${Math.sin(currentTime) * 60}px)`
+        <motion.div 
+          className="absolute h-[600px] w-[600px] rounded-full blur-[160px] opacity-10 right-0 bottom-0"
+          animate={{
+            x: currentScene.id === 2 ? 100 : -100,
+            y: currentScene.id === 6 ? -50 : 200,
+            background: currentScene.id === 6 ? "#cfc6ba" : "#7d8577"
           }}
+          transition={{ duration: 3, ease: "easeInOut" }}
         />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,#080807_100%)] opacity-85" />
       </div>
 
       {/* ============================================================================
-          MAIN GRAPHICS STAGE
+          SCENE 1: DETAILED LOGO REVEAL (Rendered directly in the main stage)
           ============================================================================ */}
-      <div className="relative z-10 flex h-full w-full max-w-[1920px] aspect-[16/9] items-center justify-center overflow-hidden px-8">
-        
-        {/* Left Side: Cinematic Typography Overlay */}
-        <div className="absolute left-[8%] z-30 flex max-w-lg flex-col items-start text-left pointer-events-none">
-          <AnimatePresence mode="wait">
-            {currentScene.id === 1 && (
+      <AnimatePresence>
+        {currentTime < 5.5 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center text-center bg-[#080807] pointer-events-none px-6"
+          >
+            {/* Shimmering Lens Flare background */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full bg-gradient-to-tr from-[#cfc6ba]/5 to-[#8f6b67]/10 blur-3xl opacity-80" />
+
+            <div className="relative flex flex-col items-center">
+              
+              {/* Pulsing visual circles */}
+              <div className="absolute -inset-10 rounded-full border border-white/5 bg-white/[0.01] scale-90 animate-ping opacity-25" style={{ animationDuration: "3s" }} />
+              <div className="absolute -inset-6 rounded-full border border-white/10 opacity-30 animate-pulse" />
+
+              {/* Shimmering logo */}
+              <motion.div 
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 1.2, ease: "easeOut" }}
+                className="w-16 h-16 rounded-full bg-gradient-to-tr from-pace-pearl via-pace-bone to-[#ebdcb9] flex items-center justify-center shadow-glow z-10"
+              >
+                <Moon size={32} className="text-pace-black fill-current" />
+              </motion.div>
+
+              {/* Serif Kinetic typography tracking letters */}
+              <motion.h1 
+                initial={{ letterSpacing: "0.1em", opacity: 0 }}
+                animate={{ letterSpacing: "0.55em", opacity: 1 }}
+                transition={{ duration: 2.2, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
+                className="mt-8 text-6xl font-semibold uppercase font-display text-pace-pearl drop-shadow-2xl leading-none pl-6 select-none"
+              >
+                Pace
+              </motion.h1>
+
+              {/* Cinematic text slide-in */}
+              <motion.p
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 0.8, y: 0 }}
+                transition={{ duration: 1, delay: 1.4 }}
+                className="mt-6 text-sm text-pace-bone font-medium tracking-[0.18em]"
+              >
+                We live life in phases. Hold them privately.
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ============================================================================
+          SCENE 8: PRODUCT HUNT OUTRO REVEAL
+          ============================================================================ */}
+      <AnimatePresence>
+        {currentTime >= 34.5 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.9 }}
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center text-center bg-[#080807]/90 pointer-events-none px-6"
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[450px] w-[450px] rounded-full bg-[#8f6b67]/8 blur-3xl opacity-60" />
+
+            <div className="relative flex flex-col items-center">
+              
+              {/* Shimmering logo */}
+              <motion.div 
+                initial={{ scale: 0.7, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 1.2, type: "spring", stiffness: 60 }}
+                className="w-20 h-20 rounded-full bg-pace-pearl flex items-center justify-center shadow-glow border border-white/20"
+              >
+                <Moon size={38} className="text-pace-black fill-current" />
+              </motion.div>
+
+              <motion.h2 
+                initial={{ letterSpacing: "0.2em", opacity: 0 }}
+                animate={{ letterSpacing: "0.45em", opacity: 1 }}
+                transition={{ duration: 1.6, delay: 0.3 }}
+                className="mt-6 text-4xl font-bold uppercase text-pace-pearl pl-4 font-display"
+              >
+                Pace Social
+              </motion.h2>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.6 }}
+                transition={{ duration: 0.8, delay: 0.8 }}
+                className="mt-3 text-xs tracking-[0.22em] uppercase text-pace-smoke font-semibold"
+              >
+                Private rooms for your friendship eras
+              </motion.p>
+
+              {/* Product Hunt Shimmer badge sweep */}
               <motion.div
-                key="text-scene-1"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="space-y-4"
+                transition={{ duration: 1, type: "spring", delay: 1.1 }}
+                className="mt-10 rounded-2xl bg-gradient-to-r from-[#da552f] to-[#ff7954] p-[1.5px] shadow-[0_20px_50px_rgba(218,85,47,0.25)] relative overflow-hidden"
               >
-                <span className="rounded-full border border-pace-pearl/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-pace-bone/80 backdrop-blur-md">
-                  friendship eras
-                </span>
-                <h2 className="text-5xl font-bold leading-tight text-pace-pearl tracking-tight font-display">
-                  Every era has <br />
-                  <span className="text-pace-wine italic text-6xl">its own vibe.</span>
-                </h2>
-                <p className="text-base text-pace-smoke leading-relaxed max-w-sm">
-                  Trip to Kyoto, semester rooms, late-night karaoke. Pace keeps them held quietly with friends.
-                </p>
-              </motion.div>
-            )}
+                <div className="rounded-[15px] bg-[#0c0807] px-6 py-4 flex items-center gap-4 border border-white/5 relative overflow-hidden">
+                  
+                  {/* Sweep highlight effect */}
+                  <motion.div 
+                    animate={{ x: ["-100%", "200%"] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.5 }}
+                    className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12"
+                  />
 
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#da552f] text-white font-extrabold text-2xl">
+                    P
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] uppercase tracking-widest text-[#ff7954] font-bold">Featured on</p>
+                    <p className="text-base font-extrabold text-white leading-none mt-1">Product Hunt</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.5 }}
+                transition={{ delay: 1.8 }}
+                className="mt-12 text-[10px] tracking-widest text-pace-smoke uppercase font-semibold flex items-center gap-1.5"
+              >
+                <span>Hold your memories</span>
+                <span className="w-1 h-1 bg-pace-smoke rounded-full" />
+                <span>Join the movement</span>
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ============================================================================
+          MAIN 3D GRAPHICS PLATFORM CONTAINER (Camera zoomed / panned dynamically)
+          ============================================================================ */}
+      <div 
+        className="relative z-10 flex h-full w-full max-w-[1920px] aspect-[16/9] items-center justify-center overflow-hidden px-8"
+      >
+        
+        {/* Left HUD Panel: Dynamic typography explaining active scenes */}
+        <div className="absolute left-[7%] z-30 flex max-w-sm flex-col items-start text-left pointer-events-none">
+          <AnimatePresence mode="wait">
             {currentScene.id === 2 && (
               <motion.div
-                key="text-scene-2"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                key="typography-2"
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
+                transition={{ duration: 0.7, ease: "easeOut" }}
                 className="space-y-4"
               >
-                <span className="rounded-full border border-pace-pearl/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-pace-bone/80 backdrop-blur-md">
-                  cinematic onboarding
-                </span>
-                <h2 className="text-5xl font-bold leading-tight text-pace-pearl tracking-tight font-display">
-                  Enter your <br />
-                  <span className="text-pace-moss">private space.</span>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-pace-smoke uppercase tracking-[0.2em]">
+                  <Lock size={12} /> Privacy Sandbox
+                </div>
+                <h2 className="text-4xl font-bold leading-tight tracking-tight text-pace-pearl font-display">
+                  Secure, <br />
+                  <span className="text-pace-wine italic font-medium">invite-only</span> entrance.
                 </h2>
-                <p className="text-base text-pace-smoke leading-relaxed max-w-sm">
-                  Sign in instantly. OTP passwordless verification ensures your scrapbook belongs only to your inner circle.
+                <p className="text-xs text-pace-bone/70 leading-relaxed">
+                  No passwords to leak. A quick, pass-free verification code connects you and your closest friends safely.
                 </p>
               </motion.div>
             )}
 
             {currentScene.id === 3 && (
               <motion.div
-                key="text-scene-3"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                key="typography-3"
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
                 className="space-y-4"
               >
-                <span className="rounded-full border border-pace-pearl/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-pace-bone/80 backdrop-blur-md">
-                  dashboard list
-                </span>
-                <h2 className="text-5xl font-bold leading-tight text-pace-pearl tracking-tight font-display">
-                  Active eras, <br />
-                  <span className="text-pace-bone font-medium">held quietly.</span>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-pace-smoke uppercase tracking-[0.2em]">
+                  <Layers size={12} /> Custom curation
+                </div>
+                <h2 className="text-4xl font-bold leading-tight tracking-tight text-pace-pearl font-display">
+                  All your phases, <br />
+                  <span className="text-pace-moss">held beautifully.</span>
                 </h2>
-                <p className="text-base text-pace-smoke leading-relaxed max-w-sm">
-                  Organize memory albums dynamically with customizable card structures, cover templates, and ambient color moods.
+                <p className="text-xs text-pace-bone/70 leading-relaxed">
+                  trips, college terms, Late-night coffee runs. Organize your moments in private folders styled with harmonized colors.
                 </p>
               </motion.div>
             )}
 
             {currentScene.id === 4 && (
               <motion.div
-                key="text-scene-4"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                key="typography-4"
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
                 className="space-y-4"
               >
-                <span className="rounded-full border border-pace-pearl/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-pace-bone/80 backdrop-blur-md">
-                  scrapbook feed
-                </span>
-                <h2 className="text-5xl font-bold leading-tight text-pace-pearl tracking-tight font-display">
-                  Immersive <br />
-                  <span className="text-pace-wine">timelines.</span>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-pace-smoke uppercase tracking-[0.2em]">
+                  <Camera size={12} /> Tactile scrapbooks
+                </div>
+                <h2 className="text-4xl font-bold leading-tight tracking-tight text-pace-pearl font-display">
+                  Snap & watch <br />
+                  <span className="text-pace-bone font-medium">memories drop.</span>
                 </h2>
-                <p className="text-base text-pace-smoke leading-relaxed max-w-sm">
-                  Drop photos, notes, and coordinates. Cascades fall in randomly angled layouts for a tactile, print-look feel.
+                <p className="text-xs text-pace-bone/70 leading-relaxed">
+                  Take a photo inside the app. Screen flashes, and a tactile, angled polaroid drop-slides directly onto your grid.
                 </p>
               </motion.div>
             )}
 
             {currentScene.id === 5 && (
               <motion.div
-                key="text-scene-5"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                key="typography-5"
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
                 className="space-y-4"
               >
-                <span className="rounded-full border border-pace-pearl/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-pace-bone/80 backdrop-blur-md">
-                  interactive voice
-                </span>
-                <h2 className="text-5xl font-bold leading-tight text-pace-pearl tracking-tight font-display">
-                  Listen to the <br />
-                  <span className="text-pace-pearl font-normal">moments glow.</span>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-pace-smoke uppercase tracking-[0.2em]">
+                  <Volume2 size={12} /> Audio memories
+                </div>
+                <h2 className="text-4xl font-bold leading-tight tracking-tight text-pace-pearl font-display">
+                  Keep the voice, <br />
+                  <span className="text-pace-wine">keep the laugh.</span>
                 </h2>
-                <p className="text-base text-pace-smoke leading-relaxed max-w-sm">
-                  Interactive voice note modules record and display audio spectrographs dynamically as friends click and play.
+                <p className="text-xs text-pace-bone/70 leading-relaxed">
+                  Voice notes feature an interactive, pulsing spectrograph that ripples dynamically when played.
                 </p>
               </motion.div>
             )}
 
             {currentScene.id === 6 && (
               <motion.div
-                key="text-scene-6"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                key="typography-6"
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
                 className="space-y-4"
               >
-                <span className="rounded-full border border-pace-pearl/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-pace-bone/80 backdrop-blur-md">
-                  ai recaps
-                </span>
-                <h2 className="text-5xl font-bold leading-tight text-pace-pearl tracking-tight font-display">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-pace-smoke uppercase tracking-[0.2em]">
+                  <Bot size={12} /> AI recap
+                </div>
+                <h2 className="text-4xl font-bold leading-tight tracking-tight text-pace-pearl font-display">
                   Aesthetic <br />
-                  <span className="text-pace-wine italic text-6xl">emotional recaps.</span>
+                  <span className="text-[#d2c5b1] italic">emotional recaps.</span>
                 </h2>
-                <p className="text-base text-pace-smoke leading-relaxed max-w-sm">
-                  Our custom model captures the emotional tone of your memories and writes beautiful, nostalgic summaries.
+                <p className="text-xs text-pace-bone/70 leading-relaxed">
+                  Pace parses your photos, dates, and captions to write a poetic, nostalgic summaries of the entire era.
                 </p>
               </motion.div>
             )}
 
             {currentScene.id === 7 && (
               <motion.div
-                key="text-scene-7"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                key="typography-7"
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
                 className="space-y-4"
               >
-                <span className="rounded-full border border-pace-pearl/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-pace-bone/80 backdrop-blur-md">
-                  no social pressure
-                </span>
-                <h2 className="text-5xl font-bold leading-tight text-pace-pearl tracking-tight font-display">
-                  Zero metrics. <br />
-                  <span className="text-pace-moss">Just memories.</span>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-pace-smoke uppercase tracking-[0.2em]">
+                  <ShieldCheck size={12} /> 100% PRIVATE
+                </div>
+                <h2 className="text-4xl font-bold leading-tight tracking-tight text-pace-pearl font-display">
+                  No public views. <br />
+                  <span className="text-pace-moss">No algorithms.</span>
                 </h2>
-                <p className="text-base text-pace-smoke leading-relaxed max-w-sm">
-                  No view counts. No likes. No algorithm. Just a private sandbox shared with the people who were there.
-                </p>
-              </motion.div>
-            )}
-
-            {currentScene.id === 8 && (
-              <motion.div
-                key="text-scene-8"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -30 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="space-y-4"
-              >
-                <span className="rounded-full border border-pace-pearl/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.25em] text-pace-bone/80 backdrop-blur-md">
-                  launching soon
-                </span>
-                <h2 className="text-5xl font-bold leading-tight text-pace-pearl tracking-tight font-display">
-                  Pace on <br />
-                  <span className="text-pace-pearl font-normal">Product Hunt.</span>
-                </h2>
-                <p className="text-base text-pace-smoke leading-relaxed max-w-sm">
-                  Support our private social scrapbook. Code your eras, hold your friendships.
+                <p className="text-xs text-pace-bone/70 leading-relaxed">
+                  0 followers. 0 likes. Just a quiet shared space for your closest friends, exactly where you left it.
                 </p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Center: Device Mockup Platform */}
+        {/* Center Canvas housing the dynamic, moving phone container */}
         <div 
-          className="relative z-20 flex items-center justify-center transition-all duration-700 ease-out"
+          className="relative flex items-center justify-center select-none"
           style={{
-            ...getTiltStyles(),
-            perspective: 1200,
-            marginLeft: "24%"
+            ...getCameraStyles(),
+            perspective: 1400,
+            marginLeft: "26%",
+            transformStyle: "preserve-3d"
           }}
         >
-          {/* Soft Shadow Base */}
+          
+          {/* Backdrop Radial Shadow Glow */}
           <div 
-            className="absolute rounded-[42px] blur-[35px] transition-all duration-500 pointer-events-none"
+            className="absolute rounded-[50px] blur-[40px] pointer-events-none transition-all duration-700"
             style={{
-              width: "300px",
-              height: "610px",
-              background: getGlowStyles(),
-              transform: "translateY(25px) translateZ(-50px)"
+              width: "310px",
+              height: "630px",
+              background: currentScene.id === 6 ? "rgba(210,197,177,0.25)" : "rgba(143,107,103,0.18)",
+              transform: "translateY(20px) translateZ(-40px)"
             }}
           />
 
-          {/* CSS iPhone Frame */}
-          <div className="relative w-[310px] h-[630px] rounded-[48px] bg-pace-black border-[9px] border-pace-coal shadow-[0_25px_60px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden select-none">
+          {/* PHYSICAL IPHONE FRAME (UPGRADED STYLING) */}
+          <div className="relative w-[320px] h-[645px] rounded-[52px] bg-[#0c0c0b] border-[10px] border-[#181816] shadow-[0_30px_70px_rgba(0,0,0,0.95)] flex flex-col overflow-hidden select-none border-t-[11px] border-b-[11px]">
             
-            {/* iPhone Camera Notch Area */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[110px] h-[25px] bg-pace-coal rounded-b-[16px] z-50 flex items-center justify-center gap-1.5 px-3">
-              {/* Speaker pill */}
-              <div className="w-8 h-1 bg-[#101010] rounded-full" />
-              {/* Camera dot */}
-              <div className="w-2.5 h-2.5 bg-[#090b10] rounded-full border border-neutral-900" />
+            {/* Dynamic island screen notch */}
+            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-[95px] h-[26px] bg-[#181816] rounded-full z-50 flex items-center justify-end px-3 gap-1 shadow-inner pointer-events-none">
+              <div className="w-2 h-2 bg-[#090b10] rounded-full border border-neutral-900" />
+              <div className="w-1.5 h-1.5 bg-[#030406] rounded-full" />
             </div>
 
-            {/* iPhone Screen Content Screen Switcher */}
-            <div className="w-full h-full flex flex-col bg-[#080807] relative text-pace-pearl overflow-hidden pt-6">
+            {/* Simulated Glass Reflection Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/[0.03] to-white/0 pointer-events-none z-40" />
+
+            {/* SCREEN VIEWPORT CONTAINER */}
+            <div className="w-full h-full flex flex-col bg-pace-black relative text-pace-pearl overflow-hidden pt-7">
               
-              {/* Dynamic status bar */}
-              <div className="px-5 py-1.5 flex justify-between items-center text-[10px] text-pace-smoke font-semibold absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-[#080807] to-transparent pointer-events-none">
+              {/* Top status bar details */}
+              <div className="px-6 py-1.5 flex justify-between items-center text-[9px] text-pace-smoke font-bold absolute top-0 left-0 right-0 z-40 bg-gradient-to-b from-[#080807] to-transparent pointer-events-none select-none">
                 <span>9:41</span>
                 <div className="flex items-center gap-1">
-                  <div className="w-2.5 h-2.5 bg-pace-smoke rounded-full scale-75" />
-                  <div className="w-3.5 h-2 bg-pace-smoke rounded-sm scale-75" />
+                  <span className="text-[8px]">LTE</span>
+                  <div className="w-3.5 h-2 bg-pace-smoke/60 rounded-sm scale-90 flex items-center p-0.5">
+                    <div className="h-full w-full bg-pace-pearl rounded-xs" />
+                  </div>
                 </div>
               </div>
 
-              {/* VIEW SWITCHER INSIDE PHONE */}
+              {/* View Router implementation */}
               <div className="flex-1 w-full h-full relative overflow-hidden flex flex-col text-left">
                 <AnimatePresence mode="wait">
-                  
-                  {/* SCREEN 1: SPLASH STORY BRAND */}
-                  {currentScene.id === 1 && (
-                    <motion.div
-                      key="phone-splash"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-[#141312] to-pace-black"
-                    >
-                      {/* Ambient blur orb inside phone */}
-                      <div className="absolute top-1/3 h-32 w-32 rounded-full bg-[#8f6b67]/10 blur-2xl" />
-                      
-                      <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                        className="flex flex-col items-center z-10"
-                      >
-                        <Moon size={36} className="text-pace-pearl animate-pulse" />
-                        <h3 className="mt-4 text-3xl font-bold tracking-tight font-display text-pace-pearl">
-                          Pace
-                        </h3>
-                        <p className="mt-2 text-[10px] tracking-[0.25em] text-pace-smoke uppercase font-semibold">
-                          private memory app
-                        </p>
-                      </motion.div>
 
-                      {/* Sliding visual indicators */}
-                      <div className="absolute bottom-16 left-0 right-0 flex justify-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-pace-pearl rounded-full" />
-                        <span className="w-1.5 h-1.5 bg-pace-smoke/30 rounded-full" />
-                        <span className="w-1.5 h-1.5 bg-pace-smoke/30 rounded-full" />
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* SCREEN 2: ONBOARDING LOGIN FLOW */}
+                  {/* SCREEN 2: AUTH OTP KEYPAD INPUT */}
                   {currentScene.id === 2 && (
                     <motion.div
-                      key="phone-auth"
-                      initial={{ opacity: 0, x: 50 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -50 }}
-                      className="absolute inset-0 flex flex-col p-5 bg-[#080807] justify-between z-10"
-                    >
-                      <div className="mt-8">
-                        <ChevronLeft size={16} className="text-pace-smoke" />
-                        <h3 className="mt-6 text-2xl font-semibold leading-tight text-pace-pearl">
-                          Unlocking <br />your memories
-                        </h3>
-                        <p className="mt-2 text-xs text-pace-smoke">
-                          We will text a temporary verification code to verify your phone number.
-                        </p>
-
-                        {/* Input simulator */}
-                        <div className="mt-8 border border-white/10 rounded-2xl bg-white/[0.04] p-4 text-left">
-                          <p className="text-[10px] uppercase tracking-wider text-pace-smoke font-semibold">phone number</p>
-                          <div className="mt-1 flex items-center gap-1 text-sm font-semibold">
-                            <span className="text-pace-bone">+1 (555)</span>
-                            <motion.span 
-                              className="text-pace-pearl border-r-2 border-pace-pearl pr-0.5"
-                              animate={{ opacity: [1, 0, 1] }}
-                              transition={{ repeat: Infinity, duration: 0.9 }}
-                            >
-                              019-2834
-                            </motion.span>
-                          </div>
-                        </div>
-
-                        {/* Action buttons simulator */}
-                        <div className="mt-4 rounded-2xl bg-pace-pearl p-3.5 text-center text-xs font-bold text-pace-black cursor-pointer shadow-glow">
-                          Send verification code
-                        </div>
-                      </div>
-
-                      <div className="pb-4 text-center text-[10px] text-pace-smoke">
-                        By signing in, you agree to our private terms.
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* SCREEN 3: HOME DASHBOARD LIST */}
-                  {currentScene.id === 3 && (
-                    <motion.div
-                      key="phone-home"
+                      key="phone-auth-scene"
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="absolute inset-0 flex flex-col bg-[#080807] p-5 justify-between"
+                      className="absolute inset-0 flex flex-col justify-between p-5 bg-[#080807] z-10 select-none text-left"
+                    >
+                      <div className="mt-5">
+                        <ChevronLeft size={16} className="text-pace-smoke" />
+                        <h3 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-pace-pearl">
+                          Verification code
+                        </h3>
+                        <p className="mt-1 text-[11px] text-pace-smoke leading-relaxed">
+                          We sent a 4-digit temporary verification key to your phone.
+                        </p>
+
+                        {/* Code digits boxes */}
+                        <div className="mt-6 flex justify-between gap-3 px-2">
+                          {getSimulatedOTP().map((char, index) => {
+                            const isCurrent = char !== "";
+                            return (
+                              <div 
+                                key={index}
+                                className={`w-12 h-14 rounded-xl border flex items-center justify-center text-lg font-bold transition-all duration-300 ${
+                                  isCurrent ? "border-pace-pearl bg-white/5 shadow-glow" : "border-white/10 bg-white/[0.01]"
+                                }`}
+                              >
+                                {char}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Numeric keyboard simulator */}
+                        <div className="mt-8 grid grid-cols-3 gap-2 px-1 text-center font-semibold text-pace-bone text-sm">
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+                            const isActive = getActiveKeypadKey() === num;
+                            return (
+                              <motion.div 
+                                key={num}
+                                className="h-10 rounded-lg flex items-center justify-center transition-all duration-200"
+                                style={{
+                                  backgroundColor: isActive ? "rgba(245,241,234,0.15)" : "transparent",
+                                  scale: isActive ? 0.92 : 1,
+                                  color: isActive ? "#f5f1ea" : "#cfc6ba"
+                                }}
+                              >
+                                {num}
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Spinner Check shield validation trigger */}
+                        <AnimatePresence>
+                          {currentTime - 5.5 >= 3.3 && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0 }}
+                              className="mt-6 flex items-center justify-center gap-2 border border-pace-moss/20 bg-pace-moss/5 rounded-2xl p-2.5 text-pace-moss text-xs font-semibold"
+                            >
+                              <div className="w-4 h-4 rounded-full bg-pace-moss flex items-center justify-center text-pace-black">
+                                <Check size={10} strokeWidth={3} />
+                              </div>
+                              <span>Identity Verified</span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* SCREEN 3: HOME DASHBOARD DECK */}
+                  {currentScene.id === 3 && (
+                    <motion.div
+                      key="phone-home-scene"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 flex flex-col bg-[#080807] p-5 justify-between select-none"
                     >
                       <div>
                         {/* Header */}
-                        <div className="flex justify-between items-center mt-6">
+                        <div className="flex justify-between items-center mt-5">
                           <div>
-                            <span className="text-[9px] uppercase tracking-wider text-pace-smoke font-bold">synced privately</span>
-                            <h3 className="text-2xl font-semibold text-pace-pearl leading-none mt-1">Pace</h3>
+                            <span className="text-[8px] uppercase tracking-wider text-pace-smoke font-bold">synced privately</span>
+                            <h3 className="text-xl font-bold text-pace-pearl leading-none mt-0.5">Pace</h3>
                           </div>
-                          <div className="w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-pace-bone">
-                            <User size={14} />
+                          <div className="w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-pace-bone font-bold text-xs">
+                            H
                           </div>
                         </div>
 
                         {/* Description */}
-                        <p className="mt-4 text-xs text-pace-bone/70 leading-relaxed">
-                          Your active eras, held quietly with the people who were there.
+                        <p className="mt-3 text-[11px] text-pace-bone/70 leading-relaxed">
+                          Your active eras, held privately with your closest circle.
                         </p>
 
-                        {/* Spaces deck simulation (vertical list/cards scroll) */}
-                        <div className="mt-6 space-y-4">
-                          {paces.map((p, idx) => (
-                            <motion.div 
-                              key={p.id}
-                              initial={{ opacity: 0, y: 15 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: idx * 0.15 }}
-                              className={`rounded-2xl border border-white/10 p-3 bg-gradient-to-r ${p.color} relative overflow-hidden`}
-                            >
-                              <div className="absolute right-3 top-3 overflow-hidden rounded-full border border-white/10 w-6 h-6">
-                                <img src={p.cover} className="w-full h-full object-cover" />
-                              </div>
-                              <span className="text-[8px] uppercase tracking-wider text-pace-bone font-semibold">{p.mood}</span>
-                              <h4 className="text-sm font-semibold text-pace-pearl mt-1">{p.title}</h4>
-                              <p className="text-[10px] text-pace-bone/80 mt-1.5 max-w-[170px] truncate">{p.snippet}</p>
-                            </motion.div>
-                          ))}
+                        {/* List of high-resonance spaces */}
+                        <div className="mt-5 space-y-3.5">
+                          {[
+                            {
+                              id: "kyoto",
+                              title: "Kyoto in the Rain 🌧️",
+                              mood: "nostalgic",
+                              snippet: "rain on temple roofs and buying hot coffee at vending machines",
+                              cover: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75",
+                              color: "from-[#8f6b67]/25 via-neutral-900/40 to-neutral-950",
+                              active: true
+                            },
+                            {
+                              id: "coding",
+                              title: "Vaporwave Coding 💻",
+                              mood: "chaotic",
+                              snippet: "monitors glowing at 3:14 AM and one very dramatic git merge",
+                              cover: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=400&q=75",
+                              color: "from-purple-950/20 via-neutral-900/40 to-neutral-950",
+                              active: false
+                            },
+                            {
+                              id: "chai",
+                              title: "Late Night Chai ☕",
+                              mood: "soft",
+                              snippet: " Marina wind and bad karaoke till sunrise",
+                              cover: "https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=400&q=75",
+                              color: "from-[#7d8577]/25 via-neutral-900/40 to-neutral-950",
+                              active: false
+                            }
+                          ].map((item, idx) => {
+                            // First card animates hover states
+                            const hoverActive = item.active && currentTime - 9.5 >= 1.8 && currentTime - 9.5 < 3.8;
+                            return (
+                              <motion.div 
+                                key={item.id}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: idx * 0.12 }}
+                                className={`rounded-[20px] border p-3 bg-gradient-to-r ${item.color} relative overflow-hidden transition-all duration-300 ${
+                                  hoverActive ? "border-pace-pearl/30 scale-[1.03] shadow-glow" : "border-white/5"
+                                }`}
+                              >
+                                <div className="absolute right-3.5 top-3.5 w-6 h-6 rounded-full overflow-hidden border border-white/15">
+                                  <img src={item.cover} className="w-full h-full object-cover" />
+                                </div>
+                                <span className="text-[7.5px] uppercase tracking-wider text-pace-smoke font-bold">{item.mood}</span>
+                                <h4 className="text-xs font-bold text-pace-pearl mt-0.5">{item.title}</h4>
+                                <p className="text-[9.5px] text-pace-bone/80 mt-1 max-w-[170px] truncate leading-normal">{item.snippet}</p>
+                              </motion.div>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      {/* Bottom navigation layout mockup */}
-                      <div className="h-12 border-t border-white/5 flex items-center justify-around text-pace-smoke bg-[#080807]/90 absolute bottom-0 left-0 right-0 px-2">
+                      {/* Bottom navigation */}
+                      <div className="h-12 border-t border-white/5 flex items-center justify-around text-pace-smoke bg-[#080807]/95 absolute bottom-0 left-0 right-0 px-3 select-none">
                         <div className="flex flex-col items-center text-pace-pearl">
-                          <Layers size={14} />
-                          <span className="text-[8px] mt-0.5">Spaces</span>
+                          <Layers size={13} />
+                          <span className="text-[7.5px] font-bold mt-0.5">Spaces</span>
                         </div>
                         <div className="flex flex-col items-center">
-                          <Bot size={14} />
-                          <span className="text-[8px] mt-0.5">Recaps</span>
+                          <Bot size={13} />
+                          <span className="text-[7.5px] font-bold mt-0.5">Recaps</span>
                         </div>
                         <div className="flex flex-col items-center">
-                          <User size={14} />
-                          <span className="text-[8px] mt-0.5">Profile</span>
+                          <User size={13} />
+                          <span className="text-[7.5px] font-bold mt-0.5">Profile</span>
                         </div>
                       </div>
                     </motion.div>
                   )}
 
-                  {/* SCREEN 4: CHENNAI TIMELINE VIEW */}
+                  {/* SCREEN 4: CAMERA FINDER & POLAROID DROP */}
                   {currentScene.id === 4 && (
                     <motion.div
-                      key="phone-timeline"
+                      key="phone-camera-scene"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0 flex flex-col bg-[#0d0d0c] overflow-hidden"
+                      className="absolute inset-0 flex flex-col bg-black text-pace-pearl overflow-hidden select-none"
                     >
-                      {/* Timeline cover image header */}
-                      <div className="relative h-44 overflow-hidden text-left flex flex-col justify-end p-4">
-                        <img src={covers[1]} className="absolute inset-0 w-full h-full object-cover opacity-65" />
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-[#0d0d0c]" />
+                      {/* Viewfinder block */}
+                      <div className="relative flex-1 w-full h-full flex flex-col justify-between p-4 pb-20 pt-6 text-left">
                         
-                        <ChevronLeft size={16} className="absolute left-3 top-6 text-pace-pearl bg-black/30 rounded-full p-0.5 w-6 h-6" />
+                        {/* Shutter White Flash overlay */}
+                        <AnimatePresence>
+                          {currentTime >= 16.0 && currentTime < 16.5 && (
+                            <motion.div 
+                              key="camera-shutter-flash"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute inset-0 bg-white z-50 pointer-events-none"
+                            />
+                          )}
+                        </AnimatePresence>
 
-                        <span className="text-[8px] uppercase tracking-wider text-pace-bone z-10 font-bold">late-night</span>
-                        <h4 className="text-xl font-bold text-pace-pearl leading-none mt-1 z-10">Chennai Nights</h4>
-                        <span className="text-[9px] text-pace-bone/85 mt-2 z-10 flex items-center gap-1 font-medium">
-                          <Users size={10} /> Me, Riya, Aadhi, Noor
-                        </span>
-                      </div>
-
-                      {/* Scrollable feed mock */}
-                      <div className="flex-1 p-4 space-y-4 overflow-y-auto no-scrollbar pb-16">
-                        
-                        {/* Mini recap preview */}
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.04] p-3 text-left">
-                          <div className="flex items-center gap-1.5 text-[8px] uppercase tracking-widest text-pace-smoke font-bold">
-                            <Bot size={11} /> AI Recap
+                        {/* Top banner parameters */}
+                        <div className="flex justify-between items-center text-white/80 text-[9px] uppercase tracking-widest font-bold z-10">
+                          <div className="flex items-center gap-1.5 bg-black/45 px-2.5 py-1 rounded-full backdrop-blur-md border border-white/5">
+                            <Compass size={11} className="animate-spin text-pace-wine" style={{ animationDuration: "5s" }} />
+                            <span>Kyoto Temple</span>
                           </div>
-                          <p className="text-xs text-pace-pearl mt-1.5 font-medium leading-relaxed">
-                            "April felt chaotic, loud, and strangely beautiful."
-                          </p>
+                          <span className="bg-red-500/25 border border-red-500/25 px-2 py-0.5 rounded-full text-red-200">live</span>
                         </div>
 
-                        {/* Polaroid mockup card */}
-                        <motion.div 
-                          initial={{ opacity: 0, rotate: -3, y: 15 }}
-                          animate={{ opacity: 1, rotate: -1.5, y: 0 }}
-                          className="rounded-2xl border border-white/15 bg-[#f4eee3] p-2 text-pace-black shadow-lg"
-                        >
-                          <img src={covers[1]} className="w-full aspect-[4/3] rounded-lg object-cover" />
-                          <div className="pt-2 px-1 text-left">
-                            <p className="text-xs font-semibold leading-snug">Marina beach was louder than all of us tonight.</p>
-                            <span className="text-[8px] text-pace-smoke font-bold mt-1.5 block">Riya · 11:42 PM</span>
-                          </div>
-                        </motion.div>
+                        {/* Camera finder frame background */}
+                        <img 
+                          src="https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=500&q=75" 
+                          className="absolute inset-0 w-full h-full object-cover opacity-80" 
+                        />
+
+                        {/* Viewfinder crosshairs */}
+                        <div className="absolute inset-8 border border-white/10 rounded-2xl flex items-center justify-center pointer-events-none">
+                          <div className="w-3 h-[1px] bg-white/40 absolute" />
+                          <div className="h-3 w-[1px] bg-white/40 absolute" />
+                        </div>
+
+                        {/* Click indicator on red button */}
+                        <AnimatePresence>
+                          {currentTime < 16.0 && (
+                            <motion.div 
+                              key="shutter-button-indicator"
+                              initial={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              transition={{ duration: 0.25 }}
+                              className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-2 z-20 pointer-events-none"
+                            >
+                              <motion.div 
+                                animate={{ scale: [1, 1.1, 1] }}
+                                transition={{ repeat: Infinity, duration: 1.2 }}
+                                className="w-14 h-14 rounded-full border-4 border-white flex items-center justify-center bg-transparent"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-red-600 shadow-[0_0_12px_rgba(220,38,38,0.5)]" />
+                              </motion.div>
+                              <span className="text-[8px] uppercase tracking-wider text-white bg-black/50 px-2 py-0.5 rounded">Capture Memory</span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        {/* POST-SHUTTER: Feed and drop-in memory simulation */}
+                        {currentTime >= 16.2 && (
+                          <motion.div 
+                            key="timeline-feed-post-shutter"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3 }}
+                            className="absolute inset-0 bg-[#0d0d0c] z-30 flex flex-col p-4 overflow-hidden"
+                          >
+                            <div className="flex items-center gap-2 mb-3">
+                              <ChevronLeft size={15} />
+                              <span className="text-[8px] uppercase tracking-widest text-pace-smoke font-bold">Timeline</span>
+                            </div>
+
+                            {/* Dropping Polaroid with spring bounce */}
+                            <motion.div
+                              initial={{ y: -300, rotate: -15, scale: 0.95 }}
+                              animate={{ y: 0, rotate: -1.2, scale: 1 }}
+                              transition={{ type: "spring", stiffness: 90, damping: 13, delay: 0.3 }}
+                              className="rounded-2xl border border-white/15 bg-[#f4eee3] p-2.5 text-pace-black shadow-2xl mt-4 w-full"
+                            >
+                              <img 
+                                src="https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75" 
+                                className="w-full aspect-[4/3] rounded-lg object-cover" 
+                              />
+                              <div className="pt-2 px-1 text-left">
+                                <motion.p 
+                                  className="text-xs font-bold leading-normal"
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  transition={{ delay: 0.8 }}
+                                >
+                                  Kyoto was a dream. The rain on the temple roof felt silent.
+                                </motion.p>
+                                <span className="text-[7.5px] text-pace-smoke font-bold block mt-1.5">Me · Just now · Kyoto</span>
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        )}
                       </div>
                     </motion.div>
                   )}
 
-                  {/* SCREEN 5: AUDIO WAVE VISUALIZATION */}
+                  {/* SCREEN 5: AUDIO INTERACTIVE WAVE FORM */}
                   {currentScene.id === 5 && (
                     <motion.div
-                      key="phone-audio"
-                      initial={{ opacity: 0, scale: 1.05 }}
+                      key="phone-audio-scene"
+                      initial={{ opacity: 0, scale: 0.96 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className="absolute inset-0 flex flex-col bg-[#0d0d0c] overflow-hidden"
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 flex flex-col bg-[#0d0d0c] overflow-hidden select-none"
                     >
-                      {/* Timeline cover image header */}
-                      <div className="relative h-44 overflow-hidden text-left flex flex-col justify-end p-4">
-                        <img src={covers[1]} className="absolute inset-0 w-full h-full object-cover opacity-65" />
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-[#0d0d0c]" />
-                        <ChevronLeft size={16} className="absolute left-3 top-6 text-pace-pearl" />
-
-                        <span className="text-[8px] uppercase tracking-wider text-pace-bone z-10 font-bold">late-night</span>
-                        <h4 className="text-xl font-bold text-pace-pearl leading-none mt-1 z-10">Chennai Nights</h4>
+                      {/* Timeline header */}
+                      <div className="relative h-36 overflow-hidden text-left flex flex-col justify-end p-4">
+                        <img src="https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=400&q=75" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/25 to-[#0d0d0c]" />
+                        <ChevronLeft size={16} className="absolute left-3 top-5 text-pace-pearl" />
+                        
+                        <span className="text-[8px] uppercase tracking-wider text-pace-bone font-bold z-10">late-night</span>
+                        <h4 className="text-lg font-bold text-pace-pearl mt-0.5 z-10">Late Night Chai</h4>
                       </div>
 
-                      {/* Timeline Content - Focused Voice note play */}
+                      {/* Content panel focus on voice memo */}
                       <div className="flex-1 p-4 space-y-4 text-left">
-                        <span className="text-[9px] text-pace-smoke uppercase tracking-wider font-bold">playing audio memory</span>
-                        
-                        {/* Audio Wave Play Card */}
-                        <div className="rounded-2xl border border-white/10 bg-[#161514] p-4 relative overflow-hidden flex flex-col items-center">
+                        <span className="text-[8px] text-pace-smoke uppercase tracking-wider font-bold">playing audio memory</span>
+
+                        {/* Upgraded layout with concentric circles ripple */}
+                        <div className="rounded-[22px] border border-white/10 bg-[#161514] p-4 flex flex-col items-center relative overflow-hidden">
                           
-                          {/* Animated voice wave spectrograph */}
-                          <div className="flex items-center gap-[2.5px] h-16 w-full justify-center px-1">
+                          {/* Floating waves overlay */}
+                          <div className="flex items-center gap-[2.5px] h-14 w-full justify-center px-1">
                             {audioWaves.map((bar) => (
                               <motion.div
                                 key={bar.id}
-                                className="w-[3px] rounded-full bg-pace-pearl/50"
+                                className="w-[3px] rounded-full bg-pace-pearl/45"
                                 initial={{ height: 6 }}
                                 animate={{
-                                  height: [6, bar.height, 8, bar.height * 0.6, 6],
-                                  backgroundColor: ["rgba(245,241,234,0.3)", "rgba(245,241,234,0.8)", "rgba(245,241,234,0.3)"]
+                                  height: [6, bar.height, 8, bar.height * 0.7, 6]
                                 }}
                                 transition={{
-                                  duration: 1.6,
+                                  duration: 1.4,
                                   delay: bar.delay,
                                   repeat: Infinity,
                                   ease: "easeInOut"
@@ -716,145 +968,137 @@ export default function PromoShowcase() {
                             ))}
                           </div>
 
-                          <div className="mt-4 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                            <Volume2 size={12} className="text-pace-bone animate-pulse" />
-                            <span className="text-[9px] font-semibold text-pace-pearl uppercase tracking-wider">Aadhi voice note</span>
+                          <div className="mt-4 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 relative">
+                            {/* Visual concentric ripple ring */}
+                            <span className="absolute -inset-1 rounded-full border border-white/10 scale-95 animate-ping opacity-45" style={{ animationDuration: "2s" }} />
+                            
+                            <Volume2 size={12} className="text-pace-pearl animate-pulse" />
+                            <span className="text-[9px] font-bold text-pace-pearl uppercase tracking-wider">Aadhi voice memo</span>
                           </div>
                         </div>
 
-                        <p className="text-xs text-pace-smoke leading-relaxed pl-1">
-                          "A voice note that starts as gossip and ends as a life advice conversation at 1:08 AM."
-                        </p>
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
+                          <p className="text-[11px] text-pace-bone leading-relaxed">
+                            "A voice note that starts as gossip and ends as absolute life advice at 1:08 AM."
+                          </p>
+                        </div>
                       </div>
                     </motion.div>
                   )}
 
-                  {/* SCREEN 6: POETIC AI RECAP */}
+                  {/* SCREEN 6: SHIMMER POETIC AI RECAP */}
                   {currentScene.id === 6 && (
                     <motion.div
-                      key="phone-recap"
-                      initial={{ opacity: 0, y: 40 }}
+                      key="phone-recap-scene"
+                      initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -40 }}
-                      className="absolute inset-0 flex flex-col bg-[#080807] p-5 justify-between"
+                      exit={{ opacity: 0, y: -15 }}
+                      className="absolute inset-0 flex flex-col bg-[#080807] p-5 justify-between select-none"
                     >
-                      <div className="mt-6">
-                        <div className="flex items-center gap-2">
+                      <div className="mt-5">
+                        <div className="flex items-center gap-1">
                           <ChevronLeft size={16} className="text-pace-smoke" />
-                          <span className="text-[9px] uppercase tracking-wider text-pace-smoke font-bold">era summation</span>
+                          <span className="text-[8px] uppercase tracking-wider text-pace-smoke font-bold">recap summary</span>
                         </div>
 
-                        {/* Gold gradient AI Card */}
-                        <div className="mt-6 rounded-[24px] border border-pace-pearl/10 bg-gradient-to-br from-white/5 to-[#1c1a18] p-5 text-left relative overflow-hidden shadow-glow">
-                          <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#8f6b67]/15 blur-xl" />
+                        {/* Gold gradient sweep Recap Card */}
+                        <div className="mt-5 rounded-[24px] border border-[#d2c5b1]/20 bg-gradient-to-br from-white/5 to-[#1c1a18] p-5 text-left relative overflow-hidden shadow-glow">
                           
-                          <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.2em] text-[#d2c5b1] font-semibold">
+                          {/* Sweeping shimmer effect */}
+                          <motion.div 
+                            animate={{ x: ["-100%", "200%"] }}
+                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+                            className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-transparent via-[#d2c5b1]/8 to-transparent skew-x-12 pointer-events-none"
+                          />
+
+                          <div className="flex items-center gap-1.5 text-[8.5px] uppercase tracking-[0.2em] text-[#d2c5b1] font-semibold">
                             <Bot size={13} className="text-pace-bone" />
                             ai-generated recap
                           </div>
 
-                          {/* Shimmering Poetic text */}
-                          <motion.p 
-                            className="mt-4 text-sm font-semibold leading-relaxed text-pace-pearl"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 1.2, delay: 0.3 }}
-                          >
-                            "Chennai Nights felt chaotic, loud, and unforgettable. The Marina sunset was quieter than your bad karaoke, and the midnight chai breaks cemented the era as a core memory."
-                          </motion.p>
+                          {/* Typewritten summary */}
+                          <p className="mt-4 text-xs font-semibold leading-relaxed text-pace-pearl min-h-[96px] relative">
+                            {getAIRecapTypewriter()}
+                            <span 
+                              className="inline-block w-[2px] h-3.5 bg-pace-pearl ml-0.5 translate-y-[2px]"
+                              style={{ animation: "cursor-blink 0.8s step-end infinite" }}
+                            />
+                          </p>
 
-                          <div className="mt-6 grid grid-cols-2 gap-2 text-center text-[9px] text-pace-bone">
-                            <span className="rounded-xl bg-white/[0.04] py-2 border border-white/5">late-night mood</span>
-                            <span className="rounded-xl bg-white/[0.04] py-2 border border-white/5">4 friends</span>
+                          <div className="mt-5 flex items-center justify-between text-[9px] text-pace-smoke border-t border-white/5 pt-3">
+                            <span>Kyoto trip sentiment</span>
+                            <span className="text-pace-pearl font-bold">nostalgic & deep</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="pb-2 text-center text-[10px] text-pace-smoke font-medium">
-                        Tap any segment to reveal detail
+                      <div className="pb-3 text-center text-[10px] text-pace-smoke font-medium">
+                        Hold to expand details
                       </div>
                     </motion.div>
                   )}
 
-                  {/* SCREEN 7: PROFILE SCENE */}
+                  {/* SCREEN 7: ZERO SOCIAL SETTINGS PROFILE */}
                   {currentScene.id === 7 && (
                     <motion.div
-                      key="phone-profile"
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      className="absolute inset-0 flex flex-col bg-[#080807] p-5 justify-between"
-                    >
-                      <div className="mt-6 text-left">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-lg font-bold text-pace-pearl">Settings</h4>
-                          <span className="text-[8px] uppercase tracking-wider text-pace-smoke bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold">active guest</span>
-                        </div>
-
-                        {/* Profile header */}
-                        <div className="mt-6 flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-pace-moss to-pace-wine flex items-center justify-center font-bold text-lg text-pace-pearl border border-white/10">
-                            ME
-                          </div>
-                          <div>
-                            <h5 className="text-sm font-semibold text-pace-pearl">Habib</h5>
-                            <p className="text-[10px] text-pace-smoke">friendship curator since 2026</p>
-                          </div>
-                        </div>
-
-                        {/* Highlight metric cards (No social counts) */}
-                        <div className="mt-8 space-y-3">
-                          <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3 flex justify-between items-center">
-                            <span className="text-xs text-pace-bone">Paces Shared</span>
-                            <span className="text-xs font-bold text-pace-pearl">6 Eras</span>
-                          </div>
-                          <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3 flex justify-between items-center">
-                            <span className="text-xs text-pace-bone">Followers</span>
-                            <span className="text-xs font-bold text-pace-wine">0 · Not supported</span>
-                          </div>
-                          <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3 flex justify-between items-center">
-                            <span className="text-xs text-pace-bone">Public Views</span>
-                            <span className="text-xs font-bold text-pace-smoke">0 · Private only</span>
-                          </div>
-                        </div>
-
-                        <p className="mt-4 text-[10px] text-pace-smoke/70 leading-relaxed pl-1 text-center">
-                          Pace has no public profiles, followers, or algorithms. Your data is stored securely and privately.
-                        </p>
-                      </div>
-
-                      <div className="pb-4 text-center text-xs font-semibold text-pace-wine cursor-pointer">
-                        Sign Out
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* SCREEN 8: OUTRO PH LAUNCH */}
-                  {currentScene.id === 8 && (
-                    <motion.div
-                      key="phone-outro"
+                      key="phone-profile-scene"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-pace-black via-[#0d0d0c] to-[#161514] p-5 text-center"
+                      className="absolute inset-0 flex flex-col bg-[#080807] p-5 justify-between select-none text-left"
                     >
-                      <motion.div
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.15 }}
-                        className="flex flex-col items-center"
-                      >
-                        <div className="w-12 h-12 rounded-full bg-pace-pearl flex items-center justify-center text-pace-black shadow-glow">
-                          <Moon size={22} className="fill-current text-pace-black" />
+                      <div className="mt-5">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-base font-bold text-pace-pearl">Settings</h4>
+                          <span className="rounded-full border border-pace-moss/20 bg-pace-moss/5 px-2 py-0.5 text-[8px] font-bold text-pace-moss">
+                            verified private
+                          </span>
                         </div>
-                        <h4 className="text-xl font-bold mt-4 tracking-tight">Pace Social</h4>
-                        <p className="text-[9px] text-pace-bone tracking-widest uppercase mt-1">private rooms for eras</p>
 
-                        <div className="mt-8 bg-gradient-to-r from-red-600 to-orange-500 rounded-xl px-4 py-2 border border-red-500/20 shadow-lg flex items-center gap-1.5 cursor-pointer hover:scale-105 transition-transform duration-200">
-                          <span className="text-[10px] text-white uppercase font-bold tracking-wider">Product Hunt</span>
-                          <span className="text-xs text-white font-black">#1</span>
+                        {/* Profile layout */}
+                        <div className="mt-5 flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-pace-moss to-[#8f6b67] flex items-center justify-center font-bold text-sm text-white">
+                            MH
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-bold text-pace-pearl">Habib</h5>
+                            <p className="text-[9px] text-pace-smoke">private curator since 2026</p>
+                          </div>
                         </div>
-                      </motion.div>
+
+                        {/* Zero Metrics Counters with X badges */}
+                        <div className="mt-6 space-y-3.5">
+                          
+                          <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3 flex justify-between items-center relative overflow-hidden">
+                            <span className="text-xs text-pace-bone">Paces Shared</span>
+                            <span className="text-xs font-bold text-pace-pearl">3 spaces</span>
+                          </div>
+
+                          <div className="rounded-xl bg-white/[0.03] border border-red-500/10 p-3 flex justify-between items-center relative overflow-hidden">
+                            <span className="text-xs text-pace-bone">Follower Counts</span>
+                            <div className="flex items-center gap-1.5 text-red-500 font-bold text-xs">
+                              <X size={12} strokeWidth={2.5} />
+                              <span>0 · Disabled</span>
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl bg-white/[0.03] border border-red-500/10 p-3 flex justify-between items-center relative overflow-hidden">
+                            <span className="text-xs text-pace-bone">Public View Metrics</span>
+                            <div className="flex items-center gap-1.5 text-red-500 font-bold text-xs">
+                              <X size={12} strokeWidth={2.5} />
+                              <span>0 · Blocked</span>
+                            </div>
+                          </div>
+
+                        </div>
+
+                        <div className="mt-5 border border-white/5 bg-white/[0.01] rounded-xl p-3 flex gap-2">
+                          <Info size={14} className="text-pace-smoke flex-shrink-0 mt-0.5" />
+                          <p className="text-[9.5px] text-pace-smoke leading-normal">
+                            Pace is built without follower hooks, likes, or view counts. It is a quiet sanctuary for your friendship eras.
+                          </p>
+                        </div>
+                      </div>
                     </motion.div>
                   )}
 
@@ -866,93 +1110,114 @@ export default function PromoShowcase() {
           </div>
 
           {/* ============================================================================
-              SURROUNDING FLOATING ASSETS (Pop out of Phone Canvas)
+              TACTILE FLOATING SCRAPBOOK ASSETS (Zoom and Parallax depth)
               ============================================================================ */}
           
-          {/* Floating Polaroid Image (Scene 4 & 5) */}
+          {/* Floating Polaroid Image 1 (Kyoto Shrine) */}
           <AnimatePresence>
-            {(currentScene.id === 4 || currentScene.id === 5) && (
+            {(currentScene.id === 3 || currentScene.id === 4) && (
               <motion.div
-                initial={{ opacity: 0, x: 220, y: -80, rotate: 12, scale: 0.7 }}
-                animate={{ opacity: 1, x: 190, y: -40, rotate: 7, scale: 0.9 }}
-                exit={{ opacity: 0, x: 220, y: -80, scale: 0.7 }}
+                initial={{ opacity: 0, x: 230, y: -70, rotate: 15, scale: 0.8 }}
+                animate={{ opacity: 1, x: 195, y: -25, rotate: 7, scale: 0.95 }}
+                exit={{ opacity: 0, x: 230, y: -70 }}
                 transition={{ type: "spring", stiffness: 60, damping: 15 }}
-                className="absolute z-30 w-40 rounded-2xl border border-white/10 bg-[#f4eee3] p-2.5 text-pace-black shadow-[0_20px_50px_rgba(0,0,0,0.55)] pointer-events-none"
+                className="absolute z-30 w-44 rounded-2xl border border-white/10 bg-[#f4eee3] p-2.5 text-pace-black shadow-[0_20px_50px_rgba(0,0,0,0.65)] pointer-events-none"
               >
-                <img src={covers[3]} className="w-full aspect-[1/1] rounded-lg object-cover" />
+                <img src="https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75" className="w-full aspect-square rounded-lg object-cover" />
                 <div className="pt-2 px-1 text-left">
-                  <p className="text-[10px] font-bold leading-tight">Marina beach sunset 🌅</p>
-                  <span className="text-[8px] text-pace-smoke block mt-1">April 20 · Noor</span>
+                  <p className="text-[10px] font-bold leading-tight">Kyoto in the Rain 🌧️</p>
+                  <span className="text-[7.5px] text-pace-smoke block mt-1 font-bold">April 18 · Aarav</span>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Floating Voice Wave HUD Card (Scene 5) */}
+          {/* Floating Polaroid Image 2 (Late Night sunset) */}
           <AnimatePresence>
             {currentScene.id === 5 && (
               <motion.div
-                initial={{ opacity: 0, x: -220, y: 120, rotate: -8 }}
-                animate={{ opacity: 1, x: -185, y: 80, rotate: -4 }}
-                exit={{ opacity: 0, x: -220, y: 120 }}
+                initial={{ opacity: 0, x: 220, y: -50, rotate: 10, scale: 0.8 }}
+                animate={{ opacity: 1, x: 190, y: -10, rotate: -4, scale: 0.95 }}
+                exit={{ opacity: 0, x: 220, y: -50 }}
                 transition={{ type: "spring", stiffness: 60, damping: 15 }}
-                className="absolute z-30 w-44 rounded-2xl border border-white/10 bg-[#161514]/90 p-3 text-pace-pearl backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.55)] pointer-events-none text-left"
+                className="absolute z-30 w-44 rounded-2xl border border-white/10 bg-[#f4eee3] p-2.5 text-pace-black shadow-[0_20px_50px_rgba(0,0,0,0.65)] pointer-events-none"
               >
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-pace-pearl flex items-center justify-center text-pace-black">
-                    <Volume2 size={10} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold">"Late Night Gossip"</p>
-                    <p className="text-[8px] text-pace-smoke">Aadhi voice memo</p>
-                  </div>
+                <img src="https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=400&q=75" className="w-full aspect-square rounded-lg object-cover" />
+                <div className="pt-2 px-1 text-left">
+                  <p className="text-[10px] font-bold leading-tight">Late Night Chai ☕</p>
+                  <span className="text-[7.5px] text-pace-smoke block mt-1 font-bold">May 12 · Aadhi</span>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Floating AI Insights Box (Scene 6) */}
-          <AnimatePresence>
-            {currentScene.id === 6 && (
-              <motion.div
-                initial={{ opacity: 0, x: 210, y: 80, scale: 0.8 }}
-                animate={{ opacity: 1, x: 180, y: 40, scale: 1 }}
-                exit={{ opacity: 0, x: 210, y: 80 }}
-                transition={{ type: "spring", stiffness: 65, damping: 15 }}
-                className="absolute z-30 w-44 rounded-2xl border border-pace-pearl/10 bg-[#1c1a18]/90 p-3.5 text-pace-pearl backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.55)] pointer-events-none text-left"
-              >
-                <span className="text-[8px] text-[#d2c5b1] uppercase tracking-wider font-bold">era sentiment</span>
-                <h5 className="text-xs font-bold mt-1 text-pace-pearl">nostalgic & warm</h5>
-                <div className="mt-2 text-[9px] text-pace-smoke leading-relaxed">
-                  Most active hours: <span className="text-pace-pearl">10 PM - 2 AM</span>. Primary emoji: <span className="text-pace-pearl">☕</span>.
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Floating Private Verification Seal (Scene 7) */}
+          {/* Floating Private Crypt Tag (Scene 7) */}
           <AnimatePresence>
             {currentScene.id === 7 && (
               <motion.div
-                initial={{ opacity: 0, x: -210, y: -100, rotate: -10 }}
-                animate={{ opacity: 1, x: -180, y: -60, rotate: -5 }}
-                exit={{ opacity: 0, x: -210, y: -100 }}
-                transition={{ type: "spring", stiffness: 70, damping: 16 }}
-                className="absolute z-30 w-44 rounded-2xl border border-white/10 bg-white/5 p-3.5 text-pace-bone backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.55)] pointer-events-none text-left"
+                initial={{ opacity: 0, x: -220, y: -110, rotate: -15 }}
+                animate={{ opacity: 1, x: -185, y: -70, rotate: -5 }}
+                exit={{ opacity: 0, x: -220, y: -110 }}
+                transition={{ type: "spring", stiffness: 60, damping: 15 }}
+                className="absolute z-30 w-44 rounded-2xl border border-white/10 bg-white/5 p-3.5 text-pace-bone backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.65)] pointer-events-none text-left"
               >
-                <div className="flex items-center gap-1.5 text-pace-moss">
+                <div className="flex items-center gap-1 text-pace-moss">
                   <ShieldCheck size={14} />
-                  <span className="text-[9px] uppercase tracking-wider font-bold">End-to-End Crypt</span>
+                  <span className="text-[8.5px] uppercase tracking-wider font-bold">Encrypted Sandbox</span>
                 </div>
-                <h5 className="text-xs font-bold mt-1.5 text-pace-pearl">Privacy First</h5>
-                <p className="text-[9px] text-pace-smoke mt-1 leading-normal">
-                  Your metadata, coordinates, and memories are encrypted. No tracking analytics.
+                <h5 className="text-xs font-bold mt-1 text-pace-pearl">Zero analytics</h5>
+                <p className="text-[9.5px] text-pace-smoke mt-1 leading-normal">
+                  Your memories belong only to you and friends. No tracking scripts or ads.
                 </p>
               </motion.div>
             )}
           </AnimatePresence>
 
         </div>
+
+        {/* ============================================================================
+            4. FOREGROUND DEPTH-OF-FIELD BLURRED FLOATING MEMORIES (PARALLAX LAYER)
+            ============================================================================ */}
+        
+        {/* Floating Blurred Foreground Polaroid (Scene 3 & 4) */}
+        <AnimatePresence>
+          {(currentScene.id === 3 || currentScene.id === 4) && (
+            <motion.div
+              initial={{ opacity: 0, x: -100, y: 150, rotate: -12, scale: 1.15 }}
+              animate={{ opacity: 0.95, x: -60, y: 110, rotate: -6, scale: 1.35 }}
+              exit={{ opacity: 0, x: -100, y: 150 }}
+              transition={{ duration: 1.8, ease: "easeOut" }}
+              className="absolute left-[8%] bottom-[8%] z-50 w-44 rounded-2xl border border-white/5 bg-[#f4eee3]/90 p-2.5 text-pace-black shadow-[0_30px_70px_rgba(0,0,0,0.75)] pointer-events-none filter blur-[2.5px] saturate-[1.15]"
+            >
+              <img src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=300&q=60" className="w-full aspect-square rounded-lg object-cover" />
+              <div className="pt-2 px-1 text-left">
+                <p className="text-[10px] font-bold leading-tight">Vaporwave coding 💻</p>
+                <span className="text-[7.5px] text-pace-smoke block mt-0.5">Kavin</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Floating Blurred Foreground Chat Bubble (Scene 5 & 6) */}
+        <AnimatePresence>
+          {(currentScene.id === 5 || currentScene.id === 6) && (
+            <motion.div
+              initial={{ opacity: 0, x: 100, y: 180, scale: 1.2 }}
+              animate={{ opacity: 0.9, x: 60, y: 130, scale: 1.35 }}
+              exit={{ opacity: 0, x: 100, y: 180 }}
+              transition={{ duration: 1.8, ease: "easeOut" }}
+              className="absolute right-[8%] bottom-[12%] z-50 w-48 rounded-[24px] border border-white/10 bg-[#161514]/90 p-4 text-pace-pearl shadow-[0_30px_70px_rgba(0,0,0,0.75)] pointer-events-none filter blur-[2px] text-left"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-pace-pearl flex items-center justify-center text-pace-black text-[9px] font-black">R</div>
+                <div>
+                  <p className="text-[9.5px] text-pace-smoke">Riya</p>
+                  <p className="text-xs font-bold text-pace-pearl mt-0.5">"bad karaoke was too good!"</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
 
@@ -965,10 +1230,10 @@ export default function PromoShowcase() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="absolute bottom-6 left-6 right-6 z-40 flex flex-col gap-3 rounded-3xl border border-white/10 bg-[#0d0d0c]/80 p-4 backdrop-blur-xl max-w-4xl mx-auto shadow-2xl transition-all duration-300"
+            className="absolute bottom-6 left-6 right-6 z-40 flex flex-col gap-3 rounded-3xl border border-white/10 bg-[#0d0d0c]/85 p-4 backdrop-blur-xl max-w-4xl mx-auto shadow-2xl transition-all duration-300"
           >
             
-            {/* Timeline slider row */}
+            {/* Scrubber slider bar */}
             <div className="flex items-center gap-4 w-full">
               <span className="text-xs text-pace-smoke font-mono w-10 text-right">
                 {currentTime.toFixed(1)}s
@@ -981,7 +1246,7 @@ export default function PromoShowcase() {
                 value={currentTime}
                 onChange={(e) => {
                   setCurrentTime(parseFloat(e.target.value));
-                  setIsPlaying(false); // Pause on scrub
+                  setIsPlaying(false); // Pause on manual edit
                 }}
                 className="flex-1 accent-pace-pearl h-1 bg-white/15 rounded-lg appearance-none cursor-pointer"
               />
@@ -990,10 +1255,10 @@ export default function PromoShowcase() {
               </span>
             </div>
 
-            {/* Controls panel main content */}
+            {/* Main HUD Row layout */}
             <div className="flex items-center justify-between flex-wrap gap-4 pt-1">
               
-              {/* Play / Speed Group */}
+              {/* Play buttons group */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsPlaying(!isPlaying)}
@@ -1009,76 +1274,42 @@ export default function PromoShowcase() {
                     setIsPlaying(true);
                   }}
                   className="p-2.5 rounded-full border border-white/10 text-pace-bone hover:bg-white/5 active:scale-95 transition"
-                  title="Restart Animation"
+                  title="Restart Sequence"
                 >
                   <RotateCcw size={15} />
                 </button>
 
-                {/* Speed selector */}
+                {/* Speed indicator */}
                 <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5 ml-2">
-                  {[0.5, 1, 1.5, 2].map((s) => (
+                  {[0.5, 1, 1.5, 2].map((speed) => (
                     <button
-                      key={s}
-                      onClick={() => setPlaybackSpeed(s)}
+                      key={speed}
+                      onClick={() => setPlaybackSpeed(speed)}
                       className={`px-2 py-1 text-[10px] font-mono rounded-full font-bold transition ${
-                        playbackSpeed === s ? "bg-pace-pearl text-pace-black" : "text-pace-bone hover:text-white"
+                        playbackSpeed === speed ? "bg-pace-pearl text-pace-black" : "text-pace-bone hover:text-white"
                       }`}
                     >
-                      {s}x
+                      {speed}x
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* View options selectors */}
-              <div className="flex items-center gap-3">
-                
-                {/* 3D angle selector */}
-                <div className="flex flex-col items-start gap-1">
-                  <span className="text-[9px] uppercase tracking-wider text-pace-smoke font-semibold">phone angle</span>
-                  <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5 text-[10px] font-semibold text-pace-bone">
-                    {["flat", "isometric-left", "isometric-right", "extreme"].map((angle) => (
-                      <button
-                        key={angle}
-                        onClick={() => setTiltAngle(angle)}
-                        className={`px-2 py-1 rounded-full transition capitalize ${
-                          tiltAngle === angle ? "bg-pace-pearl text-pace-black" : "hover:text-white"
-                        }`}
-                      >
-                        {angle.replace("-", " ")}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Shadow glow selector */}
-                <div className="flex flex-col items-start gap-1">
-                  <span className="text-[9px] uppercase tracking-wider text-pace-smoke font-semibold">glow intensity</span>
-                  <div className="flex rounded-full border border-white/10 bg-white/5 p-0.5 text-[10px] font-semibold text-pace-bone">
-                    {["none", "low", "medium", "high"].map((glow) => (
-                      <button
-                        key={glow}
-                        onClick={() => setGlowIntensity(glow)}
-                        className={`px-2 py-1 rounded-full transition capitalize ${
-                          glowIntensity === glow ? "bg-pace-pearl text-pace-black" : "hover:text-white"
-                        }`}
-                      >
-                        {glow}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
+              {/* Status and Active Scene info badge */}
+              <div className="flex items-center gap-2 border border-white/10 bg-white/5 px-3 py-1.5 rounded-full text-xs font-semibold">
+                <span className="w-1.5 h-1.5 bg-pace-wine rounded-full animate-ping" />
+                <span className="text-pace-bone">Active Scene:</span>
+                <span className="text-pace-pearl font-bold truncate max-w-[150px]">{currentScene.name}</span>
               </div>
 
-              {/* Recording helpers */}
+              {/* Utility and capture keys */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowGrain(!showGrain)}
                   className={`p-2.5 rounded-full border transition ${
                     showGrain ? "border-pace-moss text-pace-moss bg-pace-moss/5" : "border-white/10 text-pace-smoke hover:bg-white/5"
                   }`}
-                  title="Toggle Film Grain"
+                  title="Toggle Film Grain overlay"
                 >
                   <Monitor size={15} />
                 </button>
@@ -1086,16 +1317,16 @@ export default function PromoShowcase() {
                 <button
                   onClick={() => setShowGuide(!showGuide)}
                   className={`p-2.5 rounded-full border transition ${
-                    showGuide ? "border-pace-wine text-pace-wine bg-pace-wine/5" : "border-white/10 text-pace-smoke hover:bg-white/5"
+                    showGuide ? "border-[#ff7954] text-[#ff7954] bg-[#da552f]/5" : "border-white/10 text-pace-smoke hover:bg-white/5"
                   }`}
-                  title="Recording Guide"
+                  title="OBS Recording Guide"
                 >
                   <HelpCircle size={15} />
                 </button>
 
                 <button
                   onClick={triggerCaptureStart}
-                  className="flex items-center gap-1.5 rounded-full bg-pace-wine text-pace-pearl px-4 py-2 text-xs font-semibold shadow-glow hover:scale-102 active:scale-98 transition"
+                  className="flex items-center gap-1.5 rounded-full bg-pace-wine text-pace-pearl px-4 py-2 text-xs font-bold shadow-glow hover:scale-102 active:scale-98 transition"
                 >
                   <Video size={14} className="animate-pulse" />
                   Start Capture
@@ -1104,7 +1335,7 @@ export default function PromoShowcase() {
 
             </div>
 
-            {/* Scene jumpers cards */}
+            {/* Mini scene selectors jump cards */}
             <div className="border-t border-white/5 pt-3 flex items-center justify-between overflow-x-auto gap-2 no-scrollbar">
               {SCENES.map((scene) => {
                 const isActive = currentScene.id === scene.id;
@@ -1117,7 +1348,7 @@ export default function PromoShowcase() {
                     }`}
                   >
                     <p className="text-[9px] uppercase tracking-wider font-bold">Scene {scene.id}</p>
-                    <p className="text-[10px] font-semibold mt-0.5 truncate">{scene.label}</p>
+                    <p className="text-[10px] font-bold mt-0.5 truncate">{scene.label}</p>
                   </button>
                 );
               })}
@@ -1127,41 +1358,41 @@ export default function PromoShowcase() {
         )}
       </AnimatePresence>
 
-      {/* Capture Mode Overlay / Esc instructions */}
+      {/* Capture Indicator Banner */}
       {capturingMode && (
-        <div className="absolute top-6 left-6 z-40 flex items-center gap-2 rounded-full border border-red-500/20 bg-red-950/80 px-4 py-2 text-xs font-semibold text-red-200 backdrop-blur-md shadow-lg">
+        <div className="absolute top-6 left-6 z-40 flex items-center gap-2 rounded-full border border-red-500/20 bg-red-950/80 px-4 py-2 text-xs font-bold text-red-200 backdrop-blur-md shadow-lg">
           <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
-          <span>RECORDING LIVE CAPTURE STAGE · Press ESC to show HUD dashboard</span>
+          <span>RECORDING CAMERA STAGE · Press ESC to bring back control HUD</span>
         </div>
       )}
 
-      {/* Countdown modal overlay */}
+      {/* Record Countdown Modal screen */}
       <AnimatePresence>
         {captureCountdown > 0 && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center text-center text-pace-pearl"
+            className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center text-center text-pace-pearl"
           >
             <motion.span 
               key={captureCountdown}
-              initial={{ scale: 0.5, opacity: 0 }}
+              initial={{ scale: 0.4, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 1.5, opacity: 0 }}
               transition={{ duration: 0.8 }}
-              className="text-8xl font-bold font-display text-pace-wine"
+              className="text-9xl font-black font-display text-pace-wine"
             >
               {captureCountdown}
             </motion.span>
             <p className="mt-4 text-xs tracking-widest text-pace-smoke uppercase font-semibold">
-              Preparing capture stage. Press F11 for full screen now.
+              Preparing stage. Press F11 for full screen browser view now.
             </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Guide Info Modal Dialog overlay */}
+      {/* Guide Info Dialog overlay */}
       <AnimatePresence>
         {showGuide && (
           <motion.div 
@@ -1169,7 +1400,7 @@ export default function PromoShowcase() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowGuide(false)}
-            className="absolute inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-6"
+            className="absolute inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-6"
           >
             <motion.div 
               initial={{ scale: 0.95 }}
@@ -1178,9 +1409,9 @@ export default function PromoShowcase() {
               onClick={(e) => e.stopPropagation()}
               className="rounded-3xl border border-white/10 bg-[#0d0d0c] p-6 max-w-md text-left text-pace-pearl shadow-2xl relative overflow-hidden"
             >
-              <h4 className="text-lg font-bold flex items-center gap-2">
+              <h4 className="text-lg font-bold flex items-center gap-2 border-b border-white/5 pb-3">
                 <Video size={18} className="text-pace-wine" />
-                OBS Studio Screen Capture Guide
+                OBS Studio Capture Guide
               </h4>
               
               <ul className="mt-4 space-y-3.5 text-xs text-pace-bone leading-relaxed">
@@ -1217,12 +1448,12 @@ export default function PromoShowcase() {
         )}
       </AnimatePresence>
 
-      {/* Hidden toggle HUD trigger when in clean capture mode */}
+      {/* Hidden toggle HUD key when clean capture plays */}
       {!showHUD && !capturingMode && (
         <button
           onClick={() => setShowHUD(true)}
           className="absolute bottom-6 right-6 z-40 p-3 rounded-full border border-white/10 bg-[#0d0d0c]/70 text-pace-bone hover:bg-black/90 active:scale-95 transition shadow-lg"
-          title="Show HUD controls"
+          title="Show HUD dashboard"
         >
           <Eye size={15} />
         </button>
