@@ -97,6 +97,7 @@ import StoryMode from "./features/memories/StoryMode";
 import JoinPaceModal from "./components/JoinPaceModal";
 import CapsuleLockModal from "./components/CapsuleLockModal";
 import NewChatModal from "./components/NewChatModal";
+import PromoShowcase from "./views/PromoShowcase";
 import "./styles.css";
 
 /**
@@ -846,6 +847,11 @@ function App() {
   const displayedPaces = session
     ? appPaces.filter((p) => isLiveId(p.id))
     : appPaces;
+
+  const isPromoMode = typeof window !== "undefined" && window.location.search.includes("promo=true");
+  if (isPromoMode) {
+    return <PromoShowcase />;
+  }
 
   return (
     <main className="min-h-screen w-full overflow-y-auto bg-pace-black text-pace-pearl selection:bg-pace-bone selection:text-pace-black">
