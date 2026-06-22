@@ -188,7 +188,7 @@ export default function JoinPaceModal({
         <div className="flex items-center justify-between pb-3">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-pace-smoke">Invitation Received</p>
-            <h2 className="mt-1 text-2xl font-semibold">Join Shared Space</h2>
+            <h2 className="mt-1 text-2xl font-semibold">Unlock Private Era</h2>
           </div>
           <button
             className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-pace-bone active:scale-95"
@@ -244,7 +244,7 @@ export default function JoinPaceModal({
                 transition={{ duration: 0.3 }}
               >
                 <p className="text-center text-xs leading-5 text-pace-smoke">
-                  Sign in or create an account to unlock this private Pace.
+                  Sign in or create an account to unlock this private era.
                 </p>
 
                 <form onSubmit={handleLocalSubmit} className="mt-4 grid gap-3">
@@ -292,7 +292,7 @@ export default function JoinPaceModal({
                     className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-pace-pearl text-sm font-semibold text-pace-black shadow-glow active:scale-[0.98]"
                   >
                     {authMode === "signup" ? <UserPlus size={16} /> : <LogIn size={16} />}
-                    {authMode === "signup" ? "Create Account & Join" : "Sign In & Join"}
+                    {authMode === "signup" ? "Create Account & Join Era" : "Sign In & Join Era"}
                   </button>
                 </form>
 
@@ -336,7 +336,7 @@ export default function JoinPaceModal({
                   className="flex h-14 w-full items-center justify-center gap-2.5 rounded-full bg-pace-pearl text-sm font-bold text-pace-black shadow-glow transition duration-300 hover:scale-[1.01] active:scale-[0.98]"
                 >
                   <Sparkles size={17} className={isJoining ? "animate-spin" : ""} />
-                  {isJoining ? "Joining space..." : `Join ${pace.title}`}
+                  {isJoining ? "Joining era..." : "Join this Era"}
                 </button>
               </motion.div>
             )}
