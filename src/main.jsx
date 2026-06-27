@@ -70,6 +70,7 @@ import {
   signOut
 } from "./lib/supabase";
 import { fetchInviteDetails } from "./lib/inviteApi";
+import { createLetter, fetchSentLetters } from "./lib/letterApi";
 import {
   fetchConversations,
   fetchMessages,
@@ -92,6 +93,8 @@ import EditPace from "./features/spaces/EditPace";
 import InviteFriends from "./features/spaces/InviteFriends";
 import AddMemory from "./features/memories/AddMemory";
 import StoryMode from "./features/memories/StoryMode";
+import LetterComposer from "./features/letters/LetterComposer";
+import LetterReader from "./features/letters/LetterReader";
 
 // Auxiliary overlay components
 import JoinPaceModal from "./components/JoinPaceModal";
@@ -145,6 +148,40 @@ function App() {
   const [activeConversation, setActiveConversation] = useState(null);
   const [reactions, setReactions] = useState(mockReactions);
   const [messages, setMessages] = useState(mockMessages);
+  
+  // Living Letters states
+  const [sentLetters, setSentLetters] = useState([
+    {
+      letter: {
+        id: "proto-letter-001",
+        title: "Come join us in Chennai Nights ✨",
+        status: "responded",
+        mood: "nostalgic",
+        created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        token: "letter-proto-001"
+      },
+      pace: { id: "chennai", title: "Chennai Nights", cover_url: null, mood: "late-night" }
+    }
+  ]);
+  const [activeLetterId, setActiveLetterId] = useState(null);
+
+  // Helper to sync sent letters list from database or local cache
+  async function reloadSentLetters(currSession = session) {
+    try {
+      const letters = await fetchSentLetters(currSession?.user?.id || null);
+      if (letters) {
+        setSentLetters(letters);
+      }
+    } catch (err) {
+      console.warn("Failed to reload sent letters:", err);
+    }
+  }
+
+  // Load sent letters on startup and session updates
+  useEffect(() => {
+    reloadSentLetters(session);
+  }, [session]);
+
 
   // Parses URL query string to search for active invite codes (e.g. ?invite=abc-123)
   const [pendingInvite, setPendingInvite] = useState(() => {
@@ -152,6 +189,16 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const token = params.get("invite");
       return token ? { token, loading: true } : null;
+    }
+    return null;
+  });
+
+  // Parses URL query string for Living Letter tokens (e.g. ?letter=abc-123)
+  const [pendingLetter, setPendingLetter] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("letter");
+      return token || null;
     }
     return null;
   });
@@ -179,7 +226,9 @@ function App() {
     setActiveConversation(null);
     setReactions(mockReactions);
     setMessages(mockMessages);
+    setActiveLetterId(null);
     setSyncStatus(isSupabaseConfigured ? "Signed out" : "Prototype mode");
+    reloadSentLetters(null);
   }
 
   // Calls Supabase Auth sign-out and updates local state
@@ -256,6 +305,16 @@ function App() {
           }
         } catch (convErr) {
           console.warn("Failed to load conversations from session:", convErr);
+        }
+
+        // Fetch user sent letters if online
+        try {
+          const liveLetters = await fetchSentLetters(currentSession.user.id);
+          if (liveLetters) {
+            setSentLetters(liveLetters);
+          }
+        } catch (letErr) {
+          console.warn("Failed to load sent letters from session:", letErr);
         }
       } catch (err) {
         console.error("Error loading paces for session:", err);
@@ -843,6 +902,17 @@ function App() {
     return liveInvite;
   }
 
+  // Creates a Living Letter invitation
+  async function handleCreateLetter(form) {
+    return createLetter({
+      paceId: activePace?.id,
+      senderId: session?.user?.id,
+      title: form.title,
+      mood: form.mood,
+      blocks: form.blocks
+    });
+  }
+
   // Dynamic filter displaying cloud synced paces only when logged in
   const displayedPaces = session
     ? appPaces.filter((p) => isLiveId(p.id))
@@ -916,6 +986,12 @@ function App() {
             onSendMessage={handleSendChatMessage}
             onToggleReaction={handleToggleReaction}
             onProfileUpdate={handleUpdateProfile}
+            sentLetters={sentLetters}
+            activeLetterId={activeLetterId}
+            onViewLetterResponses={(letterId) => {
+              setActiveLetterId(letterId);
+              setView("letter-response");
+            }}
           />
         )}
       </AnimatePresence>
@@ -989,6 +1065,23 @@ function App() {
               setInvite(null);
             }}
             onCreate={handleCreateInvite}
+            onWriteLetter={() => {
+              setModal("letter");
+              setInvite(null);
+            }}
+          />
+        )}
+
+        {/* Living Letter Composer */}
+        {modal === "letter" && (
+          <LetterComposer
+            pace={activePace}
+            session={session}
+            onClose={() => setModal(null)}
+            paces={displayedPaces}
+            onSent={async (result) => {
+              await reloadSentLetters(session);
+            }}
           />
         )}
 
@@ -1068,6 +1161,55 @@ function App() {
                 }
               } catch (err) {
                 console.error("Error refreshing paces after join:", err);
+              }
+            }}
+          />
+        )}
+
+        {/* Living Letter Reader — opens when ?letter=TOKEN is in URL */}
+        {pendingLetter && (
+          <LetterReader
+            token={pendingLetter}
+            session={session}
+            onClose={() => {
+              setPendingLetter(null);
+              const url = new URL(window.location.href);
+              url.searchParams.delete("letter");
+              window.history.replaceState({}, document.title, url.pathname);
+            }}
+            onSigninPassword={signInWithPassword}
+            onSignup={signUpWithEmail}
+            onSuccess={async (paceId) => {
+              setPendingLetter(null);
+              await reloadSentLetters(session);
+
+              // Remove letter token from URL
+              const url = new URL(window.location.href);
+              url.searchParams.delete("letter");
+              window.history.replaceState({}, document.title, url.pathname);
+
+              try {
+                const livePaces = await fetchPaces();
+                if (livePaces.length) {
+                  const hydrated = livePaces.map((p, idx) => ({
+                    ...p,
+                    cover: p.cover || covers[idx % covers.length]
+                  }));
+                  setAppPaces(hydrated);
+                  const matched = hydrated.find((p) => p.id === paceId) || hydrated[0];
+                  setActivePace(matched);
+                  setStarted(true);
+                  setView("timeline");
+
+                  try {
+                    const liveConvs = await fetchConversations();
+                    if (liveConvs) setConversations(liveConvs);
+                  } catch (convErr) {
+                    console.warn("Failed to refresh conversations after letter join:", convErr);
+                  }
+                }
+              } catch (err) {
+                console.error("Error refreshing paces after letter join:", err);
               }
             }}
           />

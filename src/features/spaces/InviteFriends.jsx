@@ -27,7 +27,7 @@
  */
 
 import React, { useState } from "react";
-import { Mail, Link2, Copy } from "lucide-react";
+import { Mail, Link2, Copy, Feather } from "lucide-react";
 import Modal from "../../shared/ui/Modal";
 import Close from "../../shared/ui/Close";
 import Field from "../../shared/ui/Field";
@@ -39,7 +39,7 @@ import Field from "../../shared/ui/Field";
  * @param {Function} props.onClose - Action callback when closing the modal window.
  * @param {Function} props.onCreate - Action callback executing the DB link creation.
  */
-export default function InviteFriends({ invite, onClose, onCreate, maxWidth = "max-w-[485px]" }) {
+export default function InviteFriends({ invite, onClose, onCreate, onWriteLetter, maxWidth = "max-w-[485px]" }) {
   // --- STATE HOOKS ---
   const [email, setEmail] = useState("");
   const [currentInvite, setCurrentInvite] = useState(invite);
@@ -97,6 +97,23 @@ export default function InviteFriends({ invite, onClose, onCreate, maxWidth = "m
         )}
       </div>
       
+      {/* Living Letter CTA — premium interactive invitation */}
+      <button
+        onClick={onWriteLetter}
+        className="mt-5 flex w-full items-center justify-between gap-3 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4 text-left transition hover:bg-white/[0.07] active:scale-[0.99]"
+      >
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-pace-bone">
+            <Feather size={15} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-pace-pearl">Write a Living Letter</p>
+            <p className="mt-0.5 text-[11px] text-pace-smoke leading-4">Craft an interactive letter with questions &amp; photos</p>
+          </div>
+        </div>
+        <span className="text-xs text-white/25">✦</span>
+      </button>
+
       {/* Action Footer Buttons Grid */}
       <div className="mt-4 grid grid-cols-2 gap-3">
         {/* Create Link Trigger */}

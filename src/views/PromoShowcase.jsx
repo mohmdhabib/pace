@@ -16,8 +16,8 @@ const SCENES = [
   { id: 2,  name: "Scene 2: Invite Flow",    start: 7,    end: 11,   label: "Private Link"      },
   { id: 3,  name: "Scene 3: Auth OTP",       start: 11,   end: 14,   label: "OTP Entry"         },
   { id: 4,  name: "Scene 4: Library of Eras",start: 14,   end: 18.5, label: "Home Dashboard"    },
-  { id: 5,  name: "Scene 5: Capture & Drop", start: 18.5, end: 23,   label: "Camera Shutter"    },
-  { id: 6,  name: "Scene 6: Pulse Drop",     start: 23,   end: 28,   label: "Daily Mood"        },
+  { id: 5,  name: "Scene 5: Capture & Drop", start: 18.5, end: 24,   label: "Camera Shutter"    },
+  { id: 6,  name: "Scene 6: Pulse Drop",     start: 24,   end: 28,   label: "Daily Mood"        },
   { id: 7,  name: "Scene 7: Voice Memory",   start: 28,   end: 32,   label: "Interactive Audio" },
   { id: 8,  name: "Scene 8: AI Recap",       start: 32,   end: 37,   label: "Nostalgic Recap"   },
   { id: 9,  name: "Scene 9: Capsule Lock",   start: 37,   end: 41,   label: "Era Sealed"        },
@@ -96,6 +96,25 @@ export default function PromoShowcase() {
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   }, []);
 
+  // Preload images for Scene 4 & 5 to avoid layout shift/popping
+  useEffect(() => {
+    const urls = [
+      "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75",
+      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=400&q=75",
+      "https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=400&q=75",
+      "https://images.unsplash.com/photo-1495567720989-cebdbdd97913?auto=format&fit=crop&w=400&q=75",
+      "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=400&q=75",
+      "https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=400&q=70",
+      "https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=400&q=70",
+      "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=400&q=75",
+      "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=400&q=75"
+    ];
+    urls.forEach(url => {
+      const img = new Image();
+      img.src = url;
+    });
+  }, []);
+
   const jumpToScene = (s) => { setCurrentTime(s.start); setIsPlaying(true); };
 
   // ============================================================================
@@ -107,7 +126,7 @@ export default function PromoShowcase() {
     if (t < 7 || (t >= 7 && t < 11) || t >= 44.5) return hidden;
     if (t < 14)   return { transform:"translate3d(0,-10px,120px) rotateX(0deg) rotateY(0deg)",            opacity:1, transition:"all 1.2s cubic-bezier(0.16,1,0.3,1)" };
     if (t < 18.5) return { transform:"translate3d(60px,0,-20px) rotateX(18deg) rotateY(-18deg) rotateZ(8deg)", opacity:1, transition:"all 1.5s cubic-bezier(0.16,1,0.3,1)" };
-    if (t < 23)   return { transform:"translate3d(0,15px,30px) rotateX(10deg) rotateY(-8deg) rotateZ(3deg)",   opacity:1, transition:"all 1.3s cubic-bezier(0.16,1,0.3,1)" };
+    if (t < 24)   return { transform:"translate3d(0,15px,30px) rotateX(10deg) rotateY(-8deg) rotateZ(3deg)",   opacity:1, transition:"all 1.3s cubic-bezier(0.16,1,0.3,1)" };
     if (t < 28)   return { transform:"translate3d(-40px,-5px,80px) rotateX(12deg) rotateY(12deg) rotateZ(-4deg)",opacity:1, transition:"all 1.3s cubic-bezier(0.16,1,0.3,1)" };
     if (t < 32)   return { transform:"translate3d(-60px,-15px,110px) rotateX(16deg) rotateY(16deg) rotateZ(-6deg)",opacity:1,transition:"all 1.3s cubic-bezier(0.16,1,0.3,1)" };
     if (t < 37)   return { transform:"translate3d(50px,-45px,130px) rotateX(14deg) rotateY(-14deg) rotateZ(6deg)",opacity:1,transition:"all 1.4s cubic-bezier(0.16,1,0.3,1)" };
@@ -133,7 +152,7 @@ export default function PromoShowcase() {
   const showArc  = inviteT >= 1.0;
   const showRcvd = inviteT >= 2.0;
 
-  const pulseT   = currentTime - 23;
+  const pulseT   = currentTime - 24;
   const pulseSel = pulseT >= 0.8;
   const pulseDrp = pulseT >= 2.2;
   const pulseRev = pulseT < 3.0 ? 0 : pulseT < 3.5 ? 1 : pulseT < 4.0 ? 2 : 3;
@@ -163,10 +182,10 @@ export default function PromoShowcase() {
   const isClickingShutterS5 = sc === 5 && relativeT5 >= 1.3 && relativeT5 < 1.6;
 
   const timelineT = currentTime - 18.5;
-  const scrollT = timelineT < 3.2 ? 0 : Math.min(1, (timelineT - 3.2) / 1.1);
-  const scrollY = scrollT * -105;
+  const scrollT = timelineT < 3.1 ? 0 : Math.min(1, (timelineT - 3.1) / 1.8);
+  const scrollY = scrollT * -380;
 
-  const relativeT6 = currentTime - 23.0;
+  const relativeT6 = currentTime - 24.0;
   const isClickingDropButtonS6 = sc === 6 && relativeT6 >= 1.6 && relativeT6 < 1.9;
 
   const cursorState = useMemo(() => {
@@ -190,7 +209,7 @@ export default function PromoShowcase() {
       }
     }
     if (sc === 6) {
-      const rt = t - 23.0;
+      const rt = t - 24.0;
       if (rt >= 0.7 && rt < 1.0) {
         return { x: 245, y: 195, opacity: 1, isClicking: true };
       }
@@ -684,7 +703,7 @@ export default function PromoShowcase() {
               </div>
 
               <div className="flex-1 w-full h-full relative overflow-hidden flex flex-col text-left">
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="popLayout">
 
                   {/* SCREEN 3 · AUTH OTP */}
                   {sc===3&&(
@@ -723,7 +742,7 @@ export default function PromoShowcase() {
                   {sc===4&&(
                     <motion.div key="p4" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
                       className="absolute inset-0 flex flex-col bg-[#080807] p-5 justify-between overflow-hidden">
-                      <AnimatePresence mode="wait">
+                      <AnimatePresence mode="popLayout">
                         {relativeT4 < 3.0 ? (
                           <motion.div key="dashboard" initial={{opacity:1, x: 0}} exit={{opacity:0, x: -180}} transition={{duration:0.35, ease:"easeInOut"}} className="flex-1 flex flex-col justify-between h-full">
                             <div>
@@ -735,24 +754,105 @@ export default function PromoShowcase() {
                                 <div className="w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-pace-bone font-bold text-xs">H</div>
                               </div>
                               <p className="mt-3 text-[11px] text-pace-bone/70">Your active eras, held privately.</p>
-                              <div className="mt-4 space-y-3">
+                              <div className="flex flex-col gap-3.5 mt-4 overflow-visible">
                                 {[
-                                  {id:"kyoto",title:"Kyoto in the Rain 🌧️",mood:"nostalgic",snippet:"rain on temple roofs and vending machine coffee",cover:"https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75",color:"from-[#8f6b67]/25 via-neutral-900/40 to-neutral-950",active:true,badge:3},
-                                  {id:"code", title:"Vaporwave Coding 💻",  mood:"chaotic",  snippet:"monitors glowing at 3:14 AM",                       cover:"https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=400&q=75",color:"from-purple-950/20 via-neutral-900/40 to-neutral-950",active:false,badge:0},
-                                  {id:"chai", title:"Late Night Chai ☕",   mood:"soft",     snippet:"Marina wind and bad karaoke till sunrise",           cover:"https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=400&q=75",color:"from-[#7d8577]/25 via-neutral-900/40 to-neutral-950",active:false,badge:0},
+                                  {
+                                    id:"kyoto",
+                                    title:"Kyoto in the Rain 🌧️",
+                                    mood:"nostalgic",
+                                    snippet:"rain on temple roofs and coffee",
+                                    cover:"https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75",
+                                    color:"from-[#8f6b67]/25 via-neutral-900/40 to-neutral-950",
+                                    active:true,
+                                    badge:3,
+                                    avatars:[
+                                      { initial: "R", bg: "bg-[#8f6b67]" },
+                                      { initial: "A", bg: "bg-[#7d8577]" },
+                                      { initial: "N", bg: "bg-[#cfc6ba]" }
+                                    ]
+                                  },
+                                  {
+                                    id:"code",
+                                    title:"Vaporwave Coding 💻",
+                                    mood:"chaotic",
+                                    snippet:"monitors glowing at 3:14 AM",
+                                    cover:"https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=400&q=75",
+                                    color:"from-purple-950/20 via-neutral-900/40 to-neutral-950",
+                                    active:false,
+                                    badge:0,
+                                    avatars:[
+                                      { initial: "K", bg: "bg-[#7d8577]" },
+                                      { initial: "M", bg: "bg-[#8f6b67]" }
+                                    ]
+                                  },
+                                  {
+                                    id:"chai",
+                                    title:"Late Night Chai ☕",
+                                    mood:"soft",
+                                    snippet:"Marina wind and bad karaoke",
+                                    cover:"https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6?auto=format&fit=crop&w=400&q=75",
+                                    color:"from-[#7d8577]/25 via-neutral-900/40 to-neutral-950",
+                                    active:false,
+                                    badge:0,
+                                    avatars:[
+                                      { initial: "Ad", bg: "bg-[#cfc6ba]" },
+                                      { initial: "Me", bg: "bg-[#8f6b67]" }
+                                    ]
+                                  },
                                 ].map((item,idx)=>{
-                                  const hov=item.active&&relativeT4>=1.8&&relativeT4<3.0;
-                                  const isClicked = item.active && isClickingKyotoCardS4;
+                                  // Compute card style based on phase (vertical stack list)
+                                  let cardStyle = {};
+                                  if (relativeT4 < 1.8) {
+                                    cardStyle = { y: 0, scale: 1, opacity: 1 };
+                                  } else {
+                                    const isClicked = item.active && isClickingKyotoCardS4;
+                                    if (item.id === "kyoto") {
+                                      cardStyle = { y: 0, scale: isClicked ? 0.96 : 1.02, opacity: 1 };
+                                    } else if (item.id === "code") {
+                                      cardStyle = { y: 12, scale: 0.98, opacity: 0.4 };
+                                    } else if (item.id === "chai") {
+                                      cardStyle = { y: 20, scale: 0.96, opacity: 0.3 };
+                                    }
+                                  }
+
+                                  const hov = item.active && relativeT4 >= 1.8 && relativeT4 < 3.0;
                                   return(
-                                    <motion.div key={item.id} initial={{opacity:0,x:-10}} animate={{opacity:1,x:0, scale: isClicked ? 0.96 : hov ? 1.03 : 1}} transition={{delay:idx*0.12}}
-                                      className={`rounded-[20px] border p-3 bg-gradient-to-r ${item.color} relative overflow-hidden transition-all duration-300 ${hov?"border-pace-pearl/30 shadow-glow":"border-white/5"}`}>
-                                      <div className="absolute right-3.5 top-3 flex flex-col items-end gap-0.5">
-                                        <div className="w-6 h-6 rounded-full overflow-hidden border border-white/15"><img src={item.cover} className="w-full h-full object-cover"/></div>
-                                        {item.badge>0&&<motion.div initial={{scale:0}} animate={{scale:1}} transition={{delay:1.5,type:"spring"}} className="w-4 h-4 bg-pace-wine rounded-full flex items-center justify-center text-[6px] font-black text-white">{item.badge}</motion.div>}
+                                    <motion.div
+                                      key={item.id}
+                                      initial={{ opacity: 0, y: 40 }}
+                                      animate={{
+                                        opacity: cardStyle.opacity,
+                                        y: cardStyle.y,
+                                        scale: cardStyle.scale
+                                      }}
+                                      transition={{ type: "spring", stiffness: 95, damping: 16, delay: relativeT4 < 0.6 ? 0.45 + idx * 0.15 : 0 }}
+                                      style={{ transformOrigin: "center" }}
+                                      className={`w-full p-3.5 rounded-[22px] border bg-gradient-to-br ${item.color} relative overflow-hidden shadow-lg transition-colors duration-300 ${hov ? "border-pace-pearl/30 shadow-glow" : "border-white/5"}`}
+                                    >
+                                      <div className="absolute right-3.5 top-3.5 flex flex-col items-end gap-1">
+                                        <div className="w-6 h-6 rounded-full overflow-hidden border border-white/15">
+                                          <img src={item.cover} className="w-full h-full object-cover"/>
+                                        </div>
+                                        {item.badge > 0 && (
+                                          <motion.div
+                                            animate={relativeT4 >= 0.8 ? { scale: [1, 1.15, 1], boxShadow: ["0 0 4px #8f6b67", "0 0 12px #8f6b67", "0 0 4px #8f6b67"] } : { scale: 1, boxShadow: "0 0 4px #8f6b67" }}
+                                            transition={{ repeat: Infinity, duration: 1.5 }}
+                                            className="w-4 h-4 bg-pace-wine rounded-full flex items-center justify-center text-[7px] font-black text-white"
+                                          >
+                                            {item.badge}
+                                          </motion.div>
+                                        )}
                                       </div>
-                                      <span className="text-[7.5px] uppercase tracking-wider text-pace-smoke font-bold">{item.mood}</span>
-                                      <h4 className="text-xs font-bold text-pace-pearl mt-0.5">{item.title}</h4>
-                                      <p className="text-[9.5px] text-pace-bone/80 mt-1 max-w-[170px] truncate">{item.snippet}</p>
+                                      <span className="text-[7px] uppercase tracking-wider text-pace-smoke font-bold">{item.mood}</span>
+                                      <h4 className="text-[11px] font-bold text-pace-pearl mt-0.5 leading-tight">{item.title}</h4>
+                                      <p className="text-[8.5px] text-pace-bone/70 mt-1 max-w-[145px] truncate">{item.snippet}</p>
+                                      <div className="flex items-center -space-x-1.5 mt-2.5">
+                                        {item.avatars.map((av, idxAv) => (
+                                          <div key={idxAv} className={`w-4 h-4 rounded-full ${av.bg} border border-[#080807] flex items-center justify-center text-[5.5px] font-black text-pace-black`}>
+                                            {av.initial}
+                                          </div>
+                                        ))}
+                                      </div>
                                     </motion.div>
                                   );
                                 })}
@@ -830,9 +930,12 @@ export default function PromoShowcase() {
                           {currentTime<20.5&&(
                             <motion.div key="mood" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-5}}
                               className="absolute bottom-20 left-4 right-4 z-20 flex items-center gap-2">
-                              {["🌧️ nostalgic","✨ glowing","🌊 flowing"].map((m,i)=>(
-                                <div key={i} className={`rounded-full px-2.5 py-1 text-[8px] font-bold border whitespace-nowrap ${i===0?"bg-white/15 border-white/30 text-white":"bg-black/30 border-white/10 text-white/60"}`}>{m}</div>
-                              ))}
+                              {["🌧️ nostalgic","✨ glowing","🌊 flowing"].map((m,i)=>{
+                                const isActive = i === 0 && relativeT5 >= 0.65;
+                                return (
+                                  <div key={i} className={`rounded-full px-2.5 py-1 text-[8px] font-bold border whitespace-nowrap transition-all duration-300 ${isActive?"bg-white border-white text-black font-extrabold shadow-glow scale-[1.05]":"bg-black/30 border-white/10 text-white/60"}`}>{m}</div>
+                                );
+                              })}
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -850,34 +953,97 @@ export default function PromoShowcase() {
                         </AnimatePresence>
                         {currentTime>=20.7&&(
                           <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.3}}
+                            style={{ perspective: 1000, transformStyle: "preserve-3d" }}
                             className="absolute inset-0 bg-[#0d0d0c] z-30 flex flex-col p-4 overflow-hidden">
                             <div className="flex items-center gap-2 mb-3"><ChevronLeft size={15}/><span className="text-[8px] uppercase tracking-widest text-pace-smoke font-bold">Timeline</span></div>
                             
-                            <motion.div animate={{ y: scrollY }} transition={{ type: "tween", ease: "easeInOut" }} className="flex flex-col space-y-2 mt-2">
-                              {/* Polaroid 1 */}
-                              <motion.div initial={{y:-300,rotate:-15,scale:0.95}} animate={{y:0,rotate:-1.2,scale:1}} transition={{type:"spring",stiffness:90,damping:13,delay:0.3}}
-                                className="rounded-2xl border border-white/15 bg-[#f4eee3] p-2.5 text-pace-black shadow-2xl w-[85%] mx-auto flex-shrink-0">
-                                <img src="https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75" className="w-full aspect-[4/3] rounded-lg object-cover"/>
+                            <motion.div 
+                              style={{ 
+                                transform: `translate3d(0, ${scrollY}px, 0)`,
+                                willChange: "transform",
+                                transition: "transform 0.45s cubic-bezier(0.1, 0.8, 0.25, 1)",
+                                transformStyle: "preserve-3d"
+                              }} 
+                              className="flex flex-col space-y-4 mt-2"
+                            >
+                              {/* Polaroid 1 — Me, just now */}
+                              <motion.div 
+                                initial={{ y: -300, rotate: -15, scale: 0.95, z: 0 }} 
+                                animate={{ y: 0, rotate: -1.5, scale: 1, z: 15 }} 
+                                transition={{ type: "spring", stiffness: 90, damping: 13, delay: 0.3 }}
+                                className="rounded-2xl border border-white/15 bg-[#f4eee3] p-2 text-pace-black shadow-[0_15px_30px_rgba(0,0,0,0.5)] w-[85%] mx-auto flex-shrink-0"
+                              >
+                                <img src="https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75" className="w-full aspect-[16/10] rounded-lg object-cover"/>
                                 <div className="pt-2 px-1">
-                                  <motion.p className="text-xs font-bold leading-normal" initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.8}}>Kyoto was a dream. The rain felt silent.</motion.p>
-                                  <span className="text-[7.5px] text-pace-smoke font-bold block mt-1.5">Me · Just now · Kyoto</span>
+                                  <motion.p className="text-[10px] font-bold leading-normal" initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.8}}>Kyoto was a dream. The rain felt silent.</motion.p>
+                                  <span className="text-[7.5px] text-pace-smoke font-bold block mt-1">Me · Just now · Kyoto</span>
                                 </div>
                               </motion.div>
                               
-                              {/* Polaroid 2 — friend's perspective */}
-                              <motion.div initial={{y:-200,rotate:12,scale:0.9,x:40}} animate={{y:-30,rotate:5,scale:0.88,x:20}} transition={{type:"spring",stiffness:80,damping:13,delay:0.8}}
-                                className="rounded-2xl border border-white/10 bg-[#f8f4eb] p-2 text-pace-black shadow-xl w-[72%] ml-auto -mt-4 flex-shrink-0">
-                                <img src="https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=400&q=70" className="w-full aspect-[4/3] rounded-lg object-cover opacity-90"/>
+                              {/* Polaroid 2 — Aarav, same moment */}
+                              <motion.div 
+                                initial={{ y: -200, rotate: 12, scale: 0.9, x: 40, z: 0 }} 
+                                animate={{ y: 10, rotate: 3, scale: 0.88, x: 12, z: 5 }} 
+                                transition={{ type: "spring", stiffness: 80, damping: 13, delay: 0.8 }}
+                                className="rounded-2xl border border-white/10 bg-[#f8f4eb] p-2 text-pace-black shadow-[0_8px_20px_rgba(0,0,0,0.35)] w-[72%] ml-auto -mt-6 flex-shrink-0"
+                              >
+                                <img src="https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=400&q=70" className="w-full aspect-[16/10] rounded-lg object-cover opacity-90"/>
                                 <div className="pt-1.5 px-1"><span className="text-[7px] text-pace-smoke font-bold block">Aarav · Same moment</span></div>
                               </motion.div>
 
-                              {/* Polaroid 3 — older memory Kyoto */}
-                              <motion.div initial={{opacity:0,y:20,scale:0.8}} animate={scrollT > 0.15 ? {opacity:0.95,y:0,scale:0.85,rotate:-2} : {}} transition={{type:"spring",stiffness:60,damping:12}}
-                                className="rounded-2xl border border-white/10 bg-[#ebdcb9] p-2.5 text-pace-black shadow-lg w-[78%] mx-auto -mt-6 flex-shrink-0">
-                                <img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=400&q=75" className="w-full aspect-[4/3] rounded-lg object-cover opacity-90"/>
+                              {/* Polaroid 3 — Riya, 1 day ago */}
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.8, rotate: 0, z: 0, x: 0, y: 0 }} 
+                                animate={scrollT > 0.05 ? { opacity: 0.95, scale: 0.85, rotate: -2.5, z: 20, x: -8, y: -25 } : { opacity: 0, scale: 0.8, rotate: 0, z: 0, x: 0, y: 0 }} 
+                                transition={{ type: "spring", stiffness: 60, damping: 12 }}
+                                className="rounded-2xl border border-white/10 bg-[#ebdcb9] p-2 text-pace-black shadow-[0_18px_35px_rgba(0,0,0,0.5)] w-[78%] mx-auto -mt-6 flex-shrink-0"
+                              >
+                                <img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=400&q=75" className="w-full aspect-[16/10] rounded-lg object-cover opacity-90"/>
                                 <div className="pt-1.5 px-1">
                                   <p className="text-[9px] font-bold">Midnight tea under the lanterns.</p>
                                   <span className="text-[7px] text-pace-smoke font-bold block mt-0.5">Riya · 1 day ago · Kyoto</span>
+                                </div>
+                              </motion.div>
+
+                              {/* Polaroid 4 — Arjun, 2 days ago */}
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.8, rotate: 0, z: 0, x: 0, y: 0 }} 
+                                animate={scrollT > 0.25 ? { opacity: 0.95, scale: 0.83, rotate: 1.8, z: 0, x: 10, y: -30 } : { opacity: 0, scale: 0.8, rotate: 0, z: 0, x: 0, y: 0 }} 
+                                transition={{ type: "spring", stiffness: 60, damping: 12 }}
+                                className="rounded-2xl border border-white/10 bg-[#f4eee3] p-2 text-pace-black shadow-[0_5px_15px_rgba(0,0,0,0.3)] w-[74%] ml-6 -mt-5 flex-shrink-0"
+                              >
+                                <img src="https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=400&q=70" className="w-full aspect-[16/10] rounded-lg object-cover opacity-90"/>
+                                <div className="pt-1.5 px-1">
+                                  <p className="text-[9px] font-bold leading-tight">Rain started pouring down.</p>
+                                  <span className="text-[7px] text-pace-smoke font-bold block mt-0.5">Arjun · 2 days ago · Kyoto</span>
+                                </div>
+                              </motion.div>
+
+                              {/* Polaroid 5 — Aadhi, 3 days ago */}
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.8, rotate: 0, z: 0, x: 0, y: 0 }} 
+                                animate={scrollT > 0.45 ? { opacity: 0.95, scale: 0.84, rotate: -3.5, z: 10, x: -12, y: -35 } : { opacity: 0, scale: 0.8, rotate: 0, z: 0, x: 0, y: 0 }} 
+                                transition={{ type: "spring", stiffness: 60, damping: 12 }}
+                                className="rounded-2xl border border-white/10 bg-[#ebdcb9] p-2 text-pace-black shadow-[0_12px_25px_rgba(0,0,0,0.4)] w-[76%] mr-6 -mt-6 flex-shrink-0"
+                              >
+                                <img src="https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=400&q=75" className="w-full aspect-[16/10] rounded-lg object-cover opacity-90"/>
+                                <div className="pt-1.5 px-1">
+                                  <p className="text-[9px] font-bold leading-tight">3 AM ramen fix in a wooden alley.</p>
+                                  <span className="text-[7px] text-pace-smoke font-bold block mt-0.5">Aadhi · 3 days ago · Kyoto</span>
+                                </div>
+                              </motion.div>
+
+                              {/* Polaroid 6 — Riya, 4 days ago */}
+                              <motion.div 
+                                initial={{ opacity: 0, scale: 0.8, rotate: 0, z: 0, x: 0, y: 0 }} 
+                                animate={scrollT > 0.65 ? { opacity: 0.95, scale: 0.82, rotate: 4, z: 25, x: 0, y: -40 } : { opacity: 0, scale: 0.8, rotate: 0, z: 0, x: 0, y: 0 }} 
+                                transition={{ type: "spring", stiffness: 60, damping: 12 }}
+                                className="rounded-2xl border border-white/10 bg-[#f8f4eb] p-2 text-pace-black shadow-[0_20px_40px_rgba(0,0,0,0.55)] w-[80%] mx-auto -mt-6 flex-shrink-0"
+                              >
+                                <img src="https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=400&q=75" className="w-full aspect-[16/10] rounded-lg object-cover opacity-90"/>
+                                <div className="pt-1.5 px-1">
+                                  <p className="text-[9px] font-bold leading-tight">Lost in Arashiyama green.</p>
+                                  <span className="text-[7px] text-pace-smoke font-bold block mt-0.5">Riya · 4 days ago · Kyoto</span>
                                 </div>
                               </motion.div>
                             </motion.div>
@@ -907,7 +1073,7 @@ export default function PromoShowcase() {
                           </div>
                           <div className="mt-3 grid grid-cols-4 gap-1.5">
                             {PULSE_EMOJIS.map((item,i)=>{
-                              const relativeT6 = currentTime - 23.0;
+                              const relativeT6 = currentTime - 24.0;
                               const isClickingThisEmoji = sc === 6 && relativeT6 >= 0.7 && relativeT6 < 0.9 && i === 3;
                               return (
                                 <motion.div key={item.emoji} initial={{opacity:0,scale:0.8}} animate={{opacity:1, scale: isClickingThisEmoji ? 0.88 : 1}} transition={{delay:i*0.04}}
@@ -1144,12 +1310,59 @@ export default function PromoShowcase() {
           </div>
 
           {/* Floating assets */}
-          <AnimatePresence>
-            {(sc===4||sc===5)&&(
-              <motion.div initial={{opacity:0,x:230,y:-70,rotate:15,scale:0.8}} animate={{opacity:1,x:195,y:-25,rotate:7,scale:0.95}} exit={{opacity:0,x:230,y:-70}} transition={{type:"spring",stiffness:60,damping:15}}
-                className="absolute z-30 w-44 rounded-2xl border border-white/10 bg-[#f4eee3] p-2.5 text-pace-black shadow-[0_20px_50px_rgba(0,0,0,0.65)] pointer-events-none">
-                <img src="https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=400&q=75" className="w-full aspect-square rounded-lg object-cover"/>
-                <div className="pt-2 px-1"><p className="text-[10px] font-bold">Kyoto in the Rain 🌧️</p><span className="text-[7.5px] text-pace-smoke block mt-1 font-bold">April 18 · Aarav</span></div>
+          <AnimatePresence mode="wait">
+            {sc === 4 && (
+              <motion.div
+                key="s4-invite"
+                initial={{ opacity: 0, x: 230, y: -70, rotate: 15, scale: 0.8 }}
+                animate={{ opacity: 1, x: 195, y: -25, rotate: 7, scale: 0.95 }}
+                exit={{ opacity: 0, x: 230, y: -70, rotate: 15, scale: 0.8 }}
+                transition={{ type: "spring", stiffness: 60, damping: 15, delay: 0.6 }}
+                className="absolute z-30 w-48 rounded-[22px] border border-white/10 bg-[#0d0d0c]/90 p-3.5 text-pace-pearl shadow-[0_20px_50px_rgba(0,0,0,0.65)] pointer-events-none text-left backdrop-blur-md"
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-pace-wine animate-pulse" />
+                  <span className="text-[7.5px] uppercase tracking-wider text-pace-smoke font-bold">room invitation</span>
+                </div>
+                <h5 className="text-[11px] font-bold text-pace-pearl">Late Night Chai ☕</h5>
+                <p className="text-[8.5px] text-pace-bone/60 mt-0.5">Aarav invited you to join</p>
+                <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
+                  <span className="text-[7px] text-pace-smoke font-semibold">2 members active</span>
+                  <div className="rounded-full bg-pace-pearl px-2.5 py-1 text-[7.5px] font-black text-pace-black">
+                    Accept
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {sc === 5 && (
+              <motion.div
+                key="s5-kyoto"
+                initial={{ opacity: 0, x: 230, y: -70, rotate: 15, scale: 0.8 }}
+                animate={{ opacity: 1, x: 195, y: -25, rotate: 7, scale: 0.95 }}
+                exit={{ opacity: 0, x: 230, y: -70, rotate: 15, scale: 0.8 }}
+                transition={{ type: "spring", stiffness: 60, damping: 15 }}
+                className="absolute z-30 w-48 rounded-[22px] border border-white/10 bg-[#0d0d0c]/90 p-3.5 text-pace-pearl shadow-[0_20px_50px_rgba(0,0,0,0.65)] pointer-events-none text-left backdrop-blur-md"
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-pace-wine animate-pulse" />
+                  <span className="text-[7.5px] uppercase tracking-wider text-pace-smoke font-bold">new memory drop</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 flex-shrink-0">
+                    <img src="https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=150&q=70" className="w-full h-full object-cover"/>
+                  </div>
+                  <div>
+                    <h5 className="text-[10px] font-bold leading-tight">Aarav dropped a photo</h5>
+                    <p className="text-[8.5px] text-pace-bone/70 mt-0.5 leading-normal">into Kyoto in the Rain 🌧️</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2">
+                  <span className="text-[7px] text-pace-smoke font-semibold">Just now · Kyoto</span>
+                  <div className="rounded-full bg-[#ebdcb9]/10 border border-[#ebdcb9]/20 px-2 py-0.5 text-[7px] font-bold text-[#ebdcb9]">
+                    Timeline
+                  </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

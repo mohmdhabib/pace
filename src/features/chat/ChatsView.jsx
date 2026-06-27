@@ -10,13 +10,13 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { MessageSquarePlus, Users, MessageCircle, Layers, ArrowRight } from "lucide-react";
+import { MessageSquarePlus, Users, MessageCircle, Layers, ArrowRight, Feather } from "lucide-react";
 import Avatar from "../../shared/ui/Avatar";
 
 /**
  * ChatsEmptyState — Premium empty state for authenticated users with no chats yet.
  */
-function ChatsEmptyState({ setModal }) {
+function ChatsEmptyState({ setModal, onWriteLetter }) {
   return (
     <motion.div
       className="flex flex-1 flex-col items-center justify-center px-8 pb-24 pt-4 text-center"
@@ -78,6 +78,14 @@ function ChatsEmptyState({ setModal }) {
           <MessageSquarePlus size={16} />
           Start a Chat
         </button>
+        <button
+          id="chats-empty-write-letter"
+          onClick={onWriteLetter}
+          className="flex items-center justify-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.05] px-5 py-3.5 text-sm font-semibold text-pace-bone backdrop-blur-xl transition active:scale-[0.97] hover:bg-white/[0.09]"
+        >
+          <Feather size={16} />
+          Write a Living Letter
+        </button>
       </div>
 
       {/* Small hint */}
@@ -93,8 +101,17 @@ export default function ChatsView({
   conversations = [],
   setView,
   setActiveConversation,
-  setModal
+  setModal,
+  onWriteLetter,
+  sentLetters = [],
+  onViewLetterResponses
 }) {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  };
+
   const directChats = conversations.filter((c) => c.type === "direct");
   const groupChats = conversations.filter((c) => c.type === "pace_group");
   const isEmpty = conversations.length === 0;
@@ -186,11 +203,76 @@ export default function ChatsView({
 
       {isEmpty ? (
         /* Premium empty state */
-        <ChatsEmptyState setModal={setModal} />
+        <ChatsEmptyState setModal={setModal} onWriteLetter={onWriteLetter} />
       ) : (
         /* Full conversations list */
         <>
           <div className="no-scrollbar flex-1 overflow-y-auto pb-24 px-5">
+            {/* Living Letter CTA card */}
+            <button
+              onClick={onWriteLetter}
+              className="mb-6 flex w-full items-center gap-3 rounded-[1.4rem] border border-white/8 bg-white/[0.03] p-4 text-left transition hover:bg-white/[0.06] active:scale-[0.99]"
+            >
+              <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-pace-bone">
+                <Feather size={15} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-pace-pearl">Write a Living Letter</p>
+                <p className="mt-0.5 text-[11px] text-pace-smoke leading-4 truncate">Craft an interactive letter with questions &amp; photos</p>
+              </div>
+              <span className="text-xs text-white/20">✦</span>
+            </button>
+
+            {/* Sent Letters Section */}
+            {sentLetters.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-xs uppercase tracking-[0.2em] text-pace-smoke font-semibold border-b border-white/5 pb-2 mb-3">
+                  Sent Letters
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {sentLetters.map(({ letter, pace }) => {
+                    const isResponded = letter.status === "responded";
+                    return (
+                      <motion.div
+                        key={letter.id}
+                        onClick={() => onViewLetterResponses?.(letter.id)}
+                        className="flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.02] p-4 cursor-pointer hover:bg-white/[0.04] transition"
+                        whileTap={{ scale: 0.99 }}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`grid h-9 w-9 flex-shrink-0 place-items-center rounded-full border ${
+                            isResponded 
+                              ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400" 
+                              : "border-white/10 bg-white/[0.04] text-pace-smoke"
+                          }`}>
+                            <Feather size={13} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between">
+                              <h3 className="text-sm font-semibold text-pace-pearl truncate">
+                                {letter.title || (pace?.title ? `Invite to ${pace.title}` : "Living Letter")}
+                              </h3>
+                              <span className="text-[10px] text-pace-smoke ml-2 shrink-0">
+                                {formatDate(letter.created_at)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`h-1.5 w-1.5 rounded-full ${
+                                isResponded ? "bg-emerald-400" : "bg-amber-400"
+                              }`} />
+                              <p className="text-[11px] text-pace-smoke truncate">
+                                {isResponded ? "Recipient responded ✦ Click to read" : "Awaiting response..."}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {/* Direct Messages Section */}
             {directChats.length > 0 && (
               <section className="mb-8">

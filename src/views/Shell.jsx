@@ -61,6 +61,8 @@ import RelationshipProfile from "../features/relationships/RelationshipProfile";
 import PulseView from "../features/pulse/PulseView";
 import Avatar from "../shared/ui/Avatar";
 import QuickCapture from "../features/camera/QuickCapture";
+import LetterResponseView from "../features/letters/LetterResponseView";
+
 
 /**
  * AIRecap Sub-Component
@@ -658,7 +660,10 @@ export default function Shell({
   setMessages,
   onSendMessage,
   onToggleReaction,
-  onProfileUpdate
+  onProfileUpdate,
+  sentLetters = [],
+  activeLetterId,
+  onViewLetterResponses
 }) {
   const [selectedUserId, setSelectedUserId] = useState("user_arjun");
 
@@ -711,7 +716,10 @@ export default function Shell({
             setView={setView}
             setActiveConversation={setActiveConversation}
             setModal={setModal}
+            onWriteLetter={() => setModal("letter")}
             key="chats"
+            sentLetters={sentLetters}
+            onViewLetterResponses={onViewLetterResponses}
           />
         )}
         {view === "chat-thread" && (
@@ -762,6 +770,13 @@ export default function Shell({
             onCreateMemory={onCreateMemory}
             session={session}
             key="camera"
+          />
+        )}
+        {view === "letter-response" && (
+          <LetterResponseView
+            letterId={activeLetterId}
+            onClose={() => setView("chats")}
+            key="letter-response"
           />
         )}
       </AnimatePresence>
